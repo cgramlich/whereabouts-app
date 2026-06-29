@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Whereabouts" />
+<meta name="theme-color" content="#E7EBF0" />
+<title>Whereabouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+/* ============================================================
+   WHEREABOUTS - design system carried from the prototype:
+   quiet slate chrome, white surfaces, and the family is the only
+   saturated color. Fonts: Bricolage Grotesque (display), Inter
+   (body), IBM Plex Mono (numbers/labels). The .wa-* chrome classes
+   match the prototype so the five views drop straight in at step 2.
+   ============================================================ */
+.wa-root{
+  --canvas:#E7EBF0; --surface:#FFFFFF; --surface-2:#F3F5F9;
+  --ink:#19212B; --muted:#6B7480; --line:#D8DDE5;
+  --green:#16A34A; --red:#DC2626; --blue:#0284C7;
+  --display:'Bricolage Grotesque', system-ui, sans-serif;
+  --body:'Inter', system-ui, sans-serif;
+  --mono:'IBM Plex Mono', ui-monospace, monospace;
+  font-family:var(--body); color:var(--ink); background:var(--canvas);
+  min-height:100vh; padding:18px; box-sizing:border-box;
+  -webkit-font-smoothing:antialiased;
+}
+.wa-root *{ box-sizing:border-box; }
+.wa-mono{ font-family:var(--mono); }
+
+/* Header */
+.wa-top{
+  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+  background:var(--surface); border:1px solid var(--line); border-radius:18px;
+  padding:14px 16px; box-shadow:0 1px 2px rgba(25,33,43,.04);
+}
+.wa-brand{ display:flex; align-items:center; gap:12px; margin-right:auto; }
+.wa-brand__mark{
+  width:34px; height:34px; border-radius:10px; flex:none;
+  background:
+    radial-gradient(circle at 30% 32%, #1E40AF 0 5px, transparent 6px),
+    radial-gradient(circle at 66% 40%, #DB2777 0 5px, transparent 6px),
+    radial-gradient(circle at 42% 70%, #16A34A 0 4px, transparent 5px),
+    var(--ink);
+}
+.wa-brand__name{ font-family:var(--display); font-weight:800; font-size:20px; margin:0; letter-spacing:-.02em; }
+.wa-brand__sub{ margin:1px 0 0; color:var(--muted); font-size:13px; }
+
+.wa-tabs{ display:flex; gap:4px; background:var(--surface-2); padding:4px; border-radius:12px; }
+.wa-tab{
+  font-family:var(--body); font-weight:600; font-size:13px; color:var(--muted);
+  border:none; background:transparent; padding:7px 13px; border-radius:9px; cursor:pointer;
+}
+.wa-tab:hover{ color:var(--ink); }
+.wa-tab.is-active{ background:var(--ink); color:#fff; }
+
+.wa-tools{ display:flex; align-items:center; gap:8px; }
+.wa-iconbtn{
+  width:34px; height:34px; border-radius:10px; border:1px solid var(--line);
+  background:var(--surface); color:var(--ink); font-size:18px; line-height:1; cursor:pointer;
+}
+.wa-iconbtn:hover{ background:var(--surface-2); }
+.wa-today{
+  border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  font-family:var(--body); font-weight:600; font-size:13px; padding:8px 12px; border-radius:10px; cursor:pointer;
+}
+.wa-today:hover{ background:var(--surface-2); }
+
+.wa-main{ margin-top:16px; }
+
+/* Generic card + buttons (shell) */
+.wa-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
+.wa-btn{ font-family:var(--body); font-weight:600; font-size:14px; padding:10px 16px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; }
+.wa-btn:hover{ background:var(--surface-2); }
+.wa-btn--primary{ background:var(--ink); color:#fff; border-color:var(--ink); }
+.wa-btn--primary:hover{ background:#000; }
+.wa-btn--danger{ color:var(--red); border-color:#f3c5bf; background:#fdf1ef; }
+.wa-btn--block{ width:100%; display:block; }
+.wa-btn:disabled{ opacity:.55; cursor:default; }
+
+.wa-input{ width:100%; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 13px; color:var(--ink); outline:none; font-size:16px; font-family:var(--body); }
+.wa-input:focus{ border-color:var(--ink); }
+.wa-label{ display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-weight:600; }
+.wa-field{ margin-bottom:14px; }
+
+/* Placeholder panels for the not-yet-built views */
+.wa-soon{ text-align:center; padding:54px 20px; color:var(--muted); }
+.wa-soon__glyph{ font-family:var(--display); font-size:44px; color:var(--line); margin-bottom:10px; }
+.wa-soon h2{ font-family:var(--display); font-weight:700; font-size:20px; color:var(--ink); margin:0 0 6px; }
+.wa-soon p{ margin:4px 0 0; font-size:14px; }
+
+/* Sync pill */
+.wa-sync{ display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:7px 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--muted); }
+.wa-sync .dot{ width:8px; height:8px; border-radius:50%; background:var(--muted); }
+.wa-sync.idle .dot{ background:var(--green); }
+.wa-sync.busy .dot{ background:var(--blue); animation:wa-pulse 1s infinite; }
+.wa-sync.pending .dot{ background:var(--blue); }
+.wa-sync.error{ border-color:#f3c5bf; color:var(--red); }
+.wa-sync.error .dot{ background:var(--red); }
+
+/* Data probe (proves the backend round-trip works in the shell) */
+.wa-probe{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:14px 0; }
+.wa-probe__cell{ background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center; }
+.wa-probe__n{ font-family:var(--display); font-weight:800; font-size:26px; }
+.wa-probe__k{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
+.wa-probe__tokens{ display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
+.wa-probe__row{ display:flex; gap:10px; flex-wrap:wrap; }
+
+/* Token (from prototype - shell uses it in the probe) */
+.wa-token{ display:inline-flex; align-items:center; justify-content:center; position:relative; font-family:var(--mono); font-weight:600; flex:none; box-shadow:0 1px 2px rgba(25,33,43,.18); }
+.wa-token--pet .wa-paw{ position:absolute; right:-3px; bottom:-3px; }
+.wa-paw{ filter:drop-shadow(0 0 1px rgba(0,0,0,.25)); }
+
+/* Legend footer */
+.wa-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:16px; padding:12px 16px; background:var(--surface); border:1px solid var(--line); border-radius:14px; }
+.wa-legend__item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+.wa-hint{ font-size:12.5px; color:var(--muted); line-height:1.5; }
+
+/* Settings drawer (from prototype) */
+.wa-scrim{ position:fixed; inset:0; background:rgba(25,33,43,.32); z-index:40; }
+.wa-drawer{ position:fixed; top:0; right:0; bottom:0; width:340px; max-width:90vw; background:var(--surface); z-index:50; padding:18px; overflow-y:auto; box-shadow:-8px 0 28px rgba(25,33,43,.16); animation:wa-slide .25s ease both; }
+.wa-drawer__head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+.wa-drawer__head h2{ font-family:var(--display); font-weight:700; font-size:18px; margin:0; }
+.wa-x{ border:none; background:none; font-size:24px; line-height:1; cursor:pointer; color:var(--muted); }
+.wa-set__group{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:16px 0 8px; }
+.wa-set__row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--surface-2); font-size:14px; }
+.wa-set__row b{ font-weight:600; }
+.wa-actrow{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; padding:12px 0; border-bottom:1px solid var(--surface-2); background:none; border-left:none; border-right:none; border-top:none; cursor:pointer; font-family:var(--body); font-size:14px; color:var(--ink); }
+.wa-actrow span{ font-size:12px; color:var(--muted); }
+
+/* Update banner */
+.wa-update{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; background:var(--ink); color:#fff; border:none; text-align:left; padding:12px 16px; font-size:13.5px; font-weight:600; border-radius:12px; margin-bottom:14px; cursor:pointer; }
+.wa-update__go{ flex:none; background:#fff; color:var(--ink); border-radius:999px; padding:6px 14px; font-weight:800; font-size:12.5px; }
+
+/* Diagnostics log */
+.wa-log{ font-family:var(--mono); font-size:11px; background:#0f141b; color:#cfe; border:1px solid var(--line); border-radius:10px; padding:12px; max-height:60vh; overflow:auto; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
+.wa-log .tag{ color:#7fd3ff; }
+.wa-log .err{ color:#ff9a8a; }
+.wa-log .t{ color:#7a8694; }
+
+/* Login */
+.wa-login{ max-width:420px; margin:0 auto; padding-top:8vh; }
+.wa-login__eyebrow{ font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); font-weight:600; }
+.wa-login__title{ font-family:var(--display); font-weight:800; font-size:32px; margin:4px 0 0; letter-spacing:-.02em; }
+.wa-notice{ background:#fdf6e3; border:1px solid #e7d8a8; color:#7a5a00; border-radius:10px; padding:10px 12px; font-size:13px; margin-top:14px; }
+
+@keyframes wa-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+@keyframes wa-slide{ from{ transform:translateX(20px); opacity:.6; } to{ transform:none; opacity:1; } }
+@media (prefers-reduced-motion: reduce){ .wa-root *{ animation:none !important; } }
+
+@media (max-width:680px){
+  .wa-root{ padding:12px; }
+  .wa-brand{ margin-right:0; width:100%; }
+  .wa-tabs{ order:3; width:100%; justify-content:space-between; }
+  .wa-tools{ margin-left:auto; }
+  .wa-probe{ grid-template-columns:repeat(3,1fr); }
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+/* ============================================================
+   LOGGING - module-level ring buffer, ASCII-only bracketed tags.
+   Phones have no console, so Settings -> Diagnostics renders this.
+   ============================================================ */
+const LOG_CAP = 600;
+const LOG = [];
+// Build stamp. Bump on every deploy so the on-screen version and the boot log
+// tell you whether the installed PWA picked up the latest index.html.
+const BUILD = "2026-06-29.1";
+function log(tag, msg){
+  const line = { t: new Date().toISOString().slice(11,19), tag, msg: String(msg) };
+  LOG.push(line);
+  if (LOG.length > LOG_CAP) LOG.shift();
+  try { console.log("[" + tag + "] " + line.msg); } catch(e){}
+}
+log("INIT", "script booting - build " + BUILD);
+
+/* ============================================================
+   SMALL UTILITIES
+   ============================================================ */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
+const nowISO = () => new Date().toISOString();
+
+const DAY_NAMES = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
+function startOfWeek(d){ const x=new Date(d); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x; }
+function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+
+/* ---- Color utilities (from prototype; the probe + step-2 tokens use them) -- */
+function hexToRgb(hex){
+  const h = hex.replace("#",""); const v = h.length===3 ? h.split("").map(c=>c+c).join("") : h;
+  return { r:parseInt(v.slice(0,2),16), g:parseInt(v.slice(2,4),16), b:parseInt(v.slice(4,6),16) };
+}
+function readableText(hex){
+  const { r,g,b } = hexToRgb(hex);
+  const lum = (0.299*r + 0.587*g + 0.114*b)/255;
+  return lum > 0.62 ? "#19212B" : "#FFFFFF";
+}
+function firstName(name){
+  const p = (name||"").split(" "); const last = p[p.length-1];
+  return /^(jr|sr|ii|iii)\.?$/i.test(last) && p.length>1 ? `${p[0]} ${last}` : p[0];
+}
+
+/* ============================================================
+   LOCAL STORAGE LAYER (namespaced "whereabouts:")
+   Source of truth at rest = the backend (Supabase); this is the
+   offline cache, identical pattern to Tracker.
+   ============================================================ */
+const NS = "whereabouts:";
+const lsGet = (k, fb) => { try { const v = localStorage.getItem(NS+k); return v===null ? fb : JSON.parse(v); } catch(e){ log("ERROR","lsGet "+k+": "+e.message); return fb; } };
+const lsSet = (k, v) => { try { localStorage.setItem(NS+k, JSON.stringify(v)); } catch(e){ log("ERROR","lsSet "+k+": "+e.message); } };
+const lsDel = (k) => { try { localStorage.removeItem(NS+k); } catch(e){} };
+
+// The three data collections. Resolution (placementAt) runs client-side over these.
+const FILES = ["entities","places","placements"];
+
+/* ============================================================
+   BACKEND + AUTH CONFIG
+   PUBLIC-SAFE values, intentionally shipped in the browser. The real
+   secrets (Supabase service-role key, any AI key) live ONLY on the
+   Railway backend. Fill these three in once the Whereabouts Supabase
+   project + Railway service exist.
+   ============================================================ */
+const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";        // TODO: Whereabouts Supabase project URL
+const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";             // TODO: Whereabouts anon (public) key
+const API_BASE = "https://YOUR-RAILWAY-APP.up.railway.app";     // TODO: whereabouts-backend Railway URL
+
+// True once the three constants above are real (not the placeholders).
+const CONFIGURED = !SUPABASE_URL.includes("YOUR-") && !SUPABASE_ANON_KEY.includes("YOUR_") && !API_BASE.includes("YOUR-");
+
+// Supabase client - AUTH ONLY (login, session, token refresh). Data never
+// touches it; it flows through our backend with the user's access token.
+const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage, storageKey: "whereabouts-auth" }
+});
+
+async function authToken(){
+  try{ const { data } = await supa.auth.getSession(); return data.session ? data.session.access_token : null; }
+  catch(e){ log("ERROR","authToken: "+e.message); return null; }
+}
+
+/* ============================================================
+   BACKEND COLLECTIONS API
+   GET  /api/collection/<name> -> the whole array
+   PUT  /api/collection/<name> -> replace the whole array
+   Whole-collection load/save; the backend stores per-record rows and
+   the PUT replaces wholesale (no SHA/conflict dance).
+   ============================================================ */
+async function collGet(file){
+  const token = await authToken();
+  if(!token) throw new Error("Not signed in");
+  log("API","GET "+file);
+  const r = await fetch(API_BASE + "/api/collection/" + file, { headers: { "Authorization":"Bearer "+token } });
+  if(!r.ok){ const t=await r.text(); log("ERROR","GET "+file+" "+r.status+" "+t.slice(0,160));
+    if(r.status===401) throw new Error("Session expired - sign in again.");
+    throw new Error("Load failed ("+r.status+")"); }
+  const j = await r.json();
+  const arr = Array.isArray(j) ? j : [];
+  log("API","GET "+file+" ok ("+arr.length+" rows)");
+  return arr;
+}
+async function collPut(file, data){
+  const token = await authToken();
+  if(!token) throw new Error("Not signed in");
+  log("API","PUT "+file+" ("+data.length+" rows)");
+  const r = await fetch(API_BASE + "/api/collection/" + file, {
+    method:"PUT",
+    headers:{ "Authorization":"Bearer "+token, "Content-Type":"application/json" },
+    body: JSON.stringify(data)
+  });
+  if(!r.ok){ const t=await r.text(); log("ERROR","PUT "+file+" "+r.status+" "+t.slice(0,160));
+    if(r.status===401) throw new Error("Session expired - sign in again.");
+    throw new Error("Save failed ("+r.status+")"); }
+  log("API","PUT "+file+" ok");
+  return true;
+}
+
+/* ============================================================
+   DATA STORE HOOK
+   Holds all collections in memory + localStorage. Optimistic local
+   writes, then push to the backend. Dirty files retry on next sync /
+   when the device comes back online. Carried from Tracker, trimmed to
+   the generic CRUD the shell needs (the task-domain helpers are gone).
+   ============================================================ */
+function useStore(){
+  const [cfg, setCfg] = useState(() => lsGet("cfg", { appName:"Whereabouts" }));
+  const [data, setData] = useState(() => { const d={}; FILES.forEach(f => d[f]=lsGet("cache:"+f, [])); return d; });
+  const [dirty, setDirty] = useState(() => lsGet("dirty", {}));
+  const [sync, setSync] = useState("idle");      // idle | busy | pending | error
+  const [syncMsg, setSyncMsg] = useState("");
+  const [online, setOnline] = useState(navigator.onLine);
+  const [authed, setAuthed] = useState(false);
+  const [authEmail, setAuthEmail] = useState("");
+  const [authReady, setAuthReady] = useState(false);
+  const cfgRef = useRef(cfg); cfgRef.current = cfg;
+  const dirtyRef = useRef(dirty); dirtyRef.current = dirty;
+  const dataRef = useRef(data); dataRef.current = data;
+  const authedRef = useRef(false);
+
+  const saveCfg = useCallback((next) => { setCfg(next); lsSet("cfg", next); }, []);
+
+  const markDirty = useCallback((file, rows) => {
+    lsSet("cache:"+file, rows);
+    const nd = { ...dirtyRef.current, [file]:true }; setDirty(nd); lsSet("dirty", nd);
+  }, []);
+
+  const pushDirty = useCallback(async () => {
+    if(!authedRef.current){ return; }
+    if(!navigator.onLine){ log("SYNC","offline; deferring push"); setSync("pending"); return; }
+    const pending = FILES.filter(f => dirtyRef.current[f]);
+    if(pending.length===0){ setSync("idle"); return; }
+    setSync("busy"); setSyncMsg("Saving...");
+    log("SYNC","push "+pending.join(","));
+    try{
+      for(const f of pending){
+        await collPut(f, dataRef.current[f]);
+        const nd = { ...dirtyRef.current, [f]:false }; dirtyRef.current = nd; setDirty(nd); lsSet("dirty", nd);
+      }
+      setSync("idle"); setSyncMsg("");
+      log("SYNC","push complete");
+    }catch(e){
+      setSync("error"); setSyncMsg(e.message||"Sync failed");
+      log("ERROR","pushDirty: "+e.message);
+    }
+  }, []);
+
+  const pull = useCallback(async () => {
+    if(!authedRef.current || !navigator.onLine) return;
+    setSync("busy"); setSyncMsg("Syncing...");
+    log("SYNC","pull all");
+    try{
+      const nextData = { ...dataRef.current };
+      for(const f of FILES){
+        if(dirtyRef.current[f]){ log("SYNC","skip pull "+f+" (dirty)"); continue; }
+        const arr = await collGet(f);
+        nextData[f] = arr; lsSet("cache:"+f, arr);
+      }
+      dataRef.current = nextData; setData(nextData);
+      setSync(FILES.some(f=>dirtyRef.current[f])?"pending":"idle"); setSyncMsg("");
+      log("SYNC","pull complete");
+      await pushDirty();
+    }catch(e){ setSync("error"); setSyncMsg(e.message||"Sync failed"); log("ERROR","pull: "+e.message); }
+  }, [pushDirty]);
+
+  // ----- Auth -----
+  const applySession = useCallback((session) => {
+    const ok = !!session;
+    const was = authedRef.current;
+    authedRef.current = ok; setAuthed(ok);
+    setAuthEmail(ok && session.user ? (session.user.email||"") : "");
+    if(ok && !was){ log("AUTH","session active"); pull(); }
+    else if(!ok){ log("AUTH","no session"); }
+  }, [pull]);
+
+  const signIn = useCallback(async (email, password) => {
+    const { error } = await supa.auth.signInWithPassword({ email:(email||"").trim(), password:password||"" });
+    if(error){ log("AUTH","sign-in failed: "+error.message); throw new Error(error.message); }
+    log("AUTH","sign-in ok");
+  }, []);
+
+  const signOut = useCallback(async () => {
+    try{ await supa.auth.signOut(); }catch(e){ log("ERROR","signOut: "+e.message); }
+    log("AUTH","signed out");
+  }, []);
+
+  const signUp = useCallback(async (email, password) => {
+    const redirectTo = window.location.origin + window.location.pathname;
+    const { data, error } = await supa.auth.signUp({ email:(email||"").trim(), password:password||"", options:{ emailRedirectTo: redirectTo } });
+    if(error){ log("AUTH","sign-up failed: "+error.message); throw new Error(error.message); }
+    const needsConfirm = !data.session;
+    log("AUTH","sign-up ok needsConfirm="+needsConfirm);
+    return { needsConfirm };
+  }, []);
+
+  useEffect(() => {
+    let sub = null;
+    (async () => {
+      try{ const { data } = await supa.auth.getSession(); applySession(data.session); }
+      catch(e){ log("ERROR","getSession: "+e.message); }
+      setAuthReady(true);
+      const res = supa.auth.onAuthStateChange((_evt, session) => { applySession(session); });
+      sub = res.data ? res.data.subscription : null;
+    })();
+    return () => { if(sub) sub.unsubscribe(); };
+  }, [applySession]);
+
+  useEffect(() => {
+    const on = () => { setOnline(true); log("SYNC","online"); pushDirty(); };
+    const off = () => { setOnline(false); log("SYNC","offline"); setSync("pending"); };
+    window.addEventListener("online", on); window.addEventListener("offline", off);
+    return () => { window.removeEventListener("online", on); window.removeEventListener("offline", off); };
+  }, [pushDirty]);
+
+  useEffect(() => {
+    const id = setInterval(() => { if(FILES.some(f=>dirtyRef.current[f]) && navigator.onLine) pushDirty(); }, 30000);
+    return () => clearInterval(id);
+  }, [pushDirty]);
+
+  // Generic upsert/remove (used by step-3 editors and the shell's sync probe).
+  const upsert = useCallback((file, row) => {
+    const list = dataRef.current[file] || [];
+    const i = list.findIndex(x => x.id === row.id);
+    let merged;
+    if(i>=0){ merged = { ...list[i], ...row, updatedAt:nowISO() }; }
+    else { merged = { ...row, id: row.id||uid(), createdAt:nowISO(), updatedAt:nowISO() }; }
+    let next;
+    if(i>=0){ next = list.slice(); next[i] = merged; } else { next = [merged, ...list]; }
+    const nd = { ...dataRef.current, [file]:next }; dataRef.current = nd; setData(nd);
+    markDirty(file, next);
+    log("SAVE", file+" upsert "+(row.name||row.id||"").slice(0,40));
+    pushDirty();
+    return merged;
+  }, [markDirty, pushDirty]);
+
+  const remove = useCallback((file, id) => {
+    const next = (dataRef.current[file]||[]).filter(x => x.id !== id);
+    const nd = { ...dataRef.current, [file]:next }; dataRef.current = nd; setData(nd);
+    markDirty(file, next);
+    log("SAVE", file+" delete "+id); pushDirty();
+  }, [markDirty, pushDirty]);
+
+  return { cfg, saveCfg, data, sync, syncMsg, online, dirty, authed, authEmail, authReady,
+           signIn, signUp, signOut, pull, pushDirty, upsert, remove, setSync };
+}
+
+/* ============================================================
+   SHARED COMPONENTS
+   ============================================================ */
+function Token({ entity, size=34, title }){
+  const txt = readableText(entity.color);
+  const isPet = entity.kind === "pet";
+  const needsBorder = entity.color.toUpperCase() === "#FFFFFF";
+  return (
+    <div className={"wa-token"+(isPet?" wa-token--pet":"")} title={title||entity.name}
+      style={{ width:size, height:size, background:entity.color, color:txt,
+        borderRadius:isPet?size*0.32:"50%", border:needsBorder?"1.5px solid #C7CDD6":"none", fontSize:size*0.34 }}>
+      {entity.short}
+      {isPet && (
+        <svg className="wa-paw" viewBox="0 0 24 24" width={size*0.36} height={size*0.36} style={{ fill:txt }} aria-hidden="true">
+          <circle cx="6" cy="9" r="2.1" /><circle cx="12" cy="6.5" r="2.1" /><circle cx="18" cy="9" r="2.1" />
+          <path d="M12 11c-3 0-5 2.2-5 4.6C7 17.5 9 18.5 12 18.5s5-1 5-2.9C17 13.2 15 11 12 11z" />
+        </svg>
+      )}
+    </div>
+  );
+}
+
+function ViewSoon({ name }){
+  return (
+    <div className="wa-card">
+      <div className="wa-soon">
+        <div className="wa-soon__glyph">{"✧"}</div>
+        <h2>{name} view</h2>
+        <p>The five views port from the prototype in step 2.</p>
+        <p className="wa-hint" style={{marginTop:10}}>This shell proves auth + sync are live. Once the views are wired, this becomes the {name.toLowerCase()} map.</p>
+      </div>
+    </div>
+  );
+}
+
+/* The Now tab also carries a live SYNC PROBE so we can confirm the backend
+   round-trip end to end before the real data-entry UI exists: add a sample
+   entity, watch it persist + sync, reload to confirm it came back, then clear. */
+function SyncProbe({ store, toast }){
+  const d = store.data;
+  const SAMPLES = [
+    { short:"Po", name:"Pops",    kind:"person", color:"#1E40AF" },
+    { short:"Kr", name:"Kristin", kind:"person", color:"#DB2777" },
+    { short:"Gh", name:"Graham",  kind:"pet",    color:"#7C4A2D" },
+  ];
+  function addSample(){
+    const s = SAMPLES[(d.entities||[]).length % SAMPLES.length];
+    store.upsert("entities", { ...s, home:"sanantonio" });
+    toast("Added "+s.name+" - watch it sync");
+  }
+  function clearSamples(){
+    (d.entities||[]).forEach(e => store.remove("entities", e.id));
+    toast("Cleared sample entities");
+  }
+  return (
+    <div className="wa-card" style={{marginBottom:16}}>
+      <h2 style={{fontFamily:"var(--display)",fontWeight:700,fontSize:17,margin:"0 0 4px"}}>Sync check</h2>
+      <p className="wa-hint">A temporary panel for the shell. It writes to the real backend so we can verify the family account round-trips before building the data-entry UI.</p>
+      <div className="wa-probe">
+        <div className="wa-probe__cell"><div className="wa-probe__n">{(d.entities||[]).length}</div><div className="wa-probe__k">Entities</div></div>
+        <div className="wa-probe__cell"><div className="wa-probe__n">{(d.places||[]).length}</div><div className="wa-probe__k">Places</div></div>
+        <div className="wa-probe__cell"><div className="wa-probe__n">{(d.placements||[]).length}</div><div className="wa-probe__k">Placements</div></div>
+      </div>
+      {(d.entities||[]).length>0 &&
+        <div className="wa-probe__tokens">
+          {(d.entities||[]).map(e => (
+            <div key={e.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,width:54}}>
+              <Token entity={e} size={36}/>
+              <span style={{fontSize:11,color:"var(--muted)"}}>{firstName(e.name)}</span>
+            </div>
+          ))}
+        </div>}
+      <div className="wa-probe__row">
+        <button className="wa-btn wa-btn--primary" onClick={addSample}>Add sample entity</button>
+        {(d.entities||[]).length>0 && <button className="wa-btn" onClick={clearSamples}>Clear</button>}
+      </div>
+    </div>
+  );
+}
+
+function Diagnostics({ onClose }){
+  return (
+    <div>
+      <div className="wa-drawer__head" style={{marginBottom:12}}>
+        <h2>Diagnostics</h2>
+        <button className="wa-x" onClick={onClose} aria-label="Back">{"←"}</button>
+      </div>
+      <div className="wa-log">
+        {LOG.slice().reverse().map((l,i) => (
+          <div key={i}><span className="t">{l.t}</span> <span className={"tag"+(l.tag==="ERROR"?" err":"")}>[{l.tag}]</span> {l.msg}</div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Settings({ store, onClose, onCheckUpdate }){
+  const [diag, setDiag] = useState(false);
+  return (
+    <>
+      <div className="wa-scrim" onClick={onClose} />
+      <div className="wa-drawer" role="dialog" aria-label="Settings">
+        {diag ? <Diagnostics onClose={()=>setDiag(false)} /> : (
+          <>
+            <div className="wa-drawer__head">
+              <h2>Settings</h2>
+              <button className="wa-x" onClick={onClose} aria-label="Close">{"×"}</button>
+            </div>
+
+            <p className="wa-set__group">Family account</p>
+            <div className="wa-set__row"><b>Signed in</b><span style={{marginLeft:"auto",color:"var(--muted)",fontSize:13}}>{store.authEmail||"-"}</span></div>
+            <div className="wa-set__row"><b>Sync</b><span style={{marginLeft:"auto"}}><span className={"wa-sync "+store.sync}><span className="dot"></span>{store.sync==="idle"?"Synced":store.sync==="busy"?(store.syncMsg||"Working"):store.sync==="pending"?"Queued (offline)":(store.syncMsg||"Error")}</span></span></div>
+
+            <p className="wa-set__group">Actions</p>
+            <button className="wa-actrow" onClick={()=>store.pull()}><b>Force sync now</b><span>Pull from the backend</span></button>
+            <button className="wa-actrow" onClick={()=>onCheckUpdate && onCheckUpdate(true)}><b>Check for updates</b><span>On build {BUILD}</span></button>
+            <button className="wa-actrow" onClick={()=>setDiag(true)}><b>Diagnostics</b><span>View the activity log</span></button>
+
+            <p className="wa-set__group">Family colors</p>
+            <p className="wa-hint">The color editor ports with the views in step 2. Family is the only color in the UI.</p>
+
+            <button className="wa-btn wa-btn--danger wa-btn--block" style={{marginTop:18}}
+              onClick={()=>{ FILES.forEach(f=>lsDel("cache:"+f)); ["cfg","dirty"].forEach(lsDel); store.signOut().then(()=>location.reload()); }}>
+              Sign out & clear this device
+            </button>
+            <p className="wa-hint" style={{textAlign:"center",marginTop:14,opacity:.7}}>Whereabouts - build {BUILD}</p>
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+/* ============================================================
+   LOGIN (family account)
+   ============================================================ */
+function Login({ store, toast }){
+  const [mode,setMode]=useState("signin");
+  const [email,setEmail]=useState("");
+  const [password,setPassword]=useState("");
+  const [busy,setBusy]=useState(false);
+  const [err,setErr]=useState("");
+  const [sent,setSent]=useState(false);
+  const isSignup = mode==="signup";
+  async function submit(){
+    setErr("");
+    if(!CONFIGURED){ setErr("The backend isn't configured in this build yet."); return; }
+    if(!email.trim()||!password){ setErr("Email and password are required."); return; }
+    if(isSignup && password.length<6){ setErr("Password must be at least 6 characters."); return; }
+    setBusy(true);
+    try{
+      if(isSignup){ const { needsConfirm } = await store.signUp(email, password); if(needsConfirm) setSent(true); else toast("Account created"); }
+      else { await store.signIn(email, password); toast("Signed in"); }
+    }catch(e){ setErr(e.message||"Something went wrong."); }
+    finally{ setBusy(false); }
+  }
+  if(sent){
+    return (
+      <div className="wa-login">
+        <div className="wa-login__eyebrow">Almost there</div>
+        <h1 className="wa-login__title">Check your email</h1>
+        <p className="wa-hint" style={{marginTop:10,fontSize:14}}>We sent a confirmation link to <b>{email.trim()}</b>. Tap it, then come back and sign in.</p>
+        <button className="wa-btn wa-btn--block" style={{marginTop:18}} onClick={()=>{ setSent(false); setMode("signin"); setPassword(""); setErr(""); }}>Back to sign in</button>
+        <p className="wa-hint" style={{textAlign:"center",marginTop:16,opacity:.6}}>build {BUILD}</p>
+      </div>
+    );
+  }
+  return (
+    <div className="wa-login">
+      <div className="wa-login__eyebrow">{isSignup?"Get started":"Welcome back"}</div>
+      <h1 className="wa-login__title">Whereabouts</h1>
+      <p className="wa-hint" style={{marginTop:8,fontSize:14}}>The family calendar of where everyone's planned to be. {isSignup?"Create your family account to sync across the wall tablet and phones.":"Sign in to your family account."}</p>
+      {!CONFIGURED && <div className="wa-notice">Backend not configured yet. This build is the shell - sign-in lights up once the Supabase URL, anon key, and API base are filled in.</div>}
+      <div className="wa-card" style={{marginTop:18}}>
+        <div className="wa-field"><span className="wa-label">Email</span>
+          <input className="wa-input" type="email" value={email} autoCapitalize="off" autoCorrect="off"
+            onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" onKeyDown={e=>{ if(e.key==="Enter") submit(); }}/></div>
+        <div className="wa-field"><span className="wa-label">Password</span>
+          <input className="wa-input" type="password" value={password} autoCapitalize="off"
+            onChange={e=>setPassword(e.target.value)} placeholder={isSignup?"At least 6 characters":"Your password"} onKeyDown={e=>{ if(e.key==="Enter") submit(); }}/></div>
+        {err && <p className="wa-hint" style={{color:"var(--red)"}}>{err}</p>}
+        <button className="wa-btn wa-btn--primary wa-btn--block" style={{marginTop:6}} disabled={busy} onClick={submit}>{busy?"...":(isSignup?"Create account":"Sign in")}</button>
+      </div>
+      <button className="wa-btn wa-btn--block" style={{marginTop:12}} disabled={busy} onClick={()=>{ setErr(""); setMode(isSignup?"signin":"signup"); }}>
+        {isSignup ? "Already have an account? Sign in" : "New here? Create an account"}</button>
+      <p className="wa-hint" style={{textAlign:"center",marginTop:16,opacity:.6}}>build {BUILD}</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   APP SHELL
+   ============================================================ */
+const VIEWS = ["Now","Day","Week","Month","Year"];
+
+function App(){
+  const store = useStore();
+  const [view,setView]=useState("Now");
+  const [cursor,setCursor]=useState(new Date());
+  const [tick,setTick]=useState(0);
+  const [settingsOpen,setSettingsOpen]=useState(false);
+  const [toastObj,setToastObj]=useState(null);
+  const toastRef = useRef();
+  const toast = useCallback((m)=>{ setToastObj(m); clearTimeout(toastRef.current); toastRef.current=setTimeout(()=>setToastObj(null),2400); },[]);
+
+  useEffect(()=>{ const id=setInterval(()=>setTick(t=>t+1),60000); return ()=>clearInterval(id); },[]);
+
+  // PWA self-update: compare the deployed BUILD stamp to the running one.
+  const [update,setUpdate]=useState(null);
+  const checkUpdate = useCallback(async (announce=false)=>{
+    try{
+      const res = await fetch(location.pathname + "?_=" + Date.now(), { cache:"no-store" });
+      if(!res.ok){ if(announce) toast("Couldn't check for updates"); return; }
+      const html = await res.text();
+      const m = html.match(/const BUILD = "([^"]+)";/);
+      if(m && m[1] && m[1] !== BUILD){ log("UPDATE","new build: "+m[1]); setUpdate(m[1]); }
+      else if(announce) toast("You're on the latest (build "+BUILD+")");
+    }catch(e){ log("UPDATE","check failed: "+e.message); if(announce) toast("Update check failed"); }
+  },[toast]);
+  useEffect(()=>{
+    checkUpdate();
+    const onVis = ()=>{ if(document.visibilityState==="visible") checkUpdate(); };
+    document.addEventListener("visibilitychange", onVis);
+    return ()=>document.removeEventListener("visibilitychange", onVis);
+  },[checkUpdate]);
+  function applyUpdate(){ window.location.replace(location.pathname + "?u=" + encodeURIComponent(update||String(Date.now()))); }
+
+  const label = useMemo(() => {
+    if(view==="Year") return `${cursor.getFullYear()}`;
+    if(view==="Month") return `${MONTH_NAMES[cursor.getMonth()]} ${cursor.getFullYear()}`;
+    if(view==="Week"){
+      const sow=startOfWeek(cursor), eow=addDays(sow,6);
+      const a=`${MONTH_ABBR[sow.getMonth()]} ${sow.getDate()}`;
+      const b=sow.getMonth()===eow.getMonth()?`${eow.getDate()}`:`${MONTH_ABBR[eow.getMonth()]} ${eow.getDate()}`;
+      return `${a} - ${b}`;
+    }
+    return `${DAY_NAMES[cursor.getDay()]}, ${MONTH_ABBR[cursor.getMonth()]} ${cursor.getDate()}`;
+  }, [view, cursor, tick]);
+
+  if(!store.authReady) return <div className="wa-root"><p className="wa-hint" style={{textAlign:"center",marginTop:90}}>Loading...</p></div>;
+  if(!store.authed) return (
+    <div className="wa-root">
+      <Login store={store} toast={toast}/>
+      {toastObj && <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:"var(--ink)",color:"#fff",padding:"9px 16px",borderRadius:999,fontSize:13.5}}>{toastObj}</div>}
+    </div>
+  );
+
+  return (
+    <div className="wa-root">
+      {update &&
+        <button className="wa-update" onClick={applyUpdate}>
+          <span>Update available - tap to refresh (build {update})</span>
+          <span className="wa-update__go">Refresh</span>
+        </button>}
+
+      <header className="wa-top">
+        <div className="wa-brand">
+          <span className="wa-brand__mark" aria-hidden="true" />
+          <div>
+            <h1 className="wa-brand__name">Whereabouts</h1>
+            <p className="wa-brand__sub">{label}</p>
+          </div>
+        </div>
+        <nav className="wa-tabs" aria-label="Views">
+          {VIEWS.map(v => <button key={v} className={"wa-tab"+(v===view?" is-active":"")} onClick={()=>setView(v)}>{v}</button>)}
+        </nav>
+        <div className="wa-tools">
+          <button className="wa-today" onClick={()=>setCursor(new Date())}>{view==="Now"?"Now":"Today"}</button>
+          <button className="wa-iconbtn" onClick={()=>setSettingsOpen(true)} aria-label="Settings">{"⚙"}</button>
+        </div>
+      </header>
+
+      <main className="wa-main">
+        {view==="Now" && <SyncProbe store={store} toast={toast}/>}
+        <ViewSoon name={view}/>
+      </main>
+
+      <footer className="wa-legend">
+        <span className="wa-legend__item">Shell build {BUILD} - views + data entry land in steps 2-3.</span>
+      </footer>
+
+      {settingsOpen && <Settings store={store} onClose={()=>setSettingsOpen(false)} onCheckUpdate={checkUpdate}/>}
+      {toastObj && <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:"var(--ink)",color:"#fff",padding:"9px 16px",borderRadius:999,fontSize:13.5,zIndex:60}}>{toastObj}</div>}
+    </div>
+  );
+}
+
+/* ============================================================
+   MOUNT
+   ============================================================ */
+(function(){
+  try{
+    log("INIT","mounting app");
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<App/>);
+    log("INIT","mounted");
+  }catch(e){
+    log("ERROR","mount failed: "+e.message);
+    document.getElementById("root").innerHTML =
+      '<div style="padding:40px;font-family:sans-serif"><h2>Startup error</h2><p>'+e.message+'</p></div>';
+  }
+})();
+</script>
+</body>
+</html>
