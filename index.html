@@ -20,8 +20,7 @@
    WHEREABOUTS - design system carried from the prototype:
    quiet slate chrome, white surfaces, and the family is the only
    saturated color. Fonts: Bricolage Grotesque (display), Inter
-   (body), IBM Plex Mono (numbers/labels). The .wa-* chrome classes
-   match the prototype so the five views drop straight in at step 2.
+   (body), IBM Plex Mono (numbers/labels).
    ============================================================ */
 .wa-root{
   --canvas:#E7EBF0; --surface:#FFFFFF; --surface-2:#F3F5F9;
@@ -38,46 +37,37 @@
 .wa-mono{ font-family:var(--mono); }
 
 /* Header */
-.wa-top{
-  display:flex; align-items:center; gap:16px; flex-wrap:wrap;
+.wa-top{ display:flex; align-items:center; gap:16px; flex-wrap:wrap;
   background:var(--surface); border:1px solid var(--line); border-radius:18px;
-  padding:14px 16px; box-shadow:0 1px 2px rgba(25,33,43,.04);
-}
+  padding:14px 16px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
 .wa-brand{ display:flex; align-items:center; gap:12px; margin-right:auto; }
-.wa-brand__mark{
-  width:34px; height:34px; border-radius:10px; flex:none;
+.wa-brand__mark{ width:34px; height:34px; border-radius:10px; flex:none;
   background:
     radial-gradient(circle at 30% 32%, #1E40AF 0 5px, transparent 6px),
     radial-gradient(circle at 66% 40%, #DB2777 0 5px, transparent 6px),
     radial-gradient(circle at 42% 70%, #16A34A 0 4px, transparent 5px),
-    var(--ink);
-}
+    var(--ink); }
 .wa-brand__name{ font-family:var(--display); font-weight:800; font-size:20px; margin:0; letter-spacing:-.02em; }
 .wa-brand__sub{ margin:1px 0 0; color:var(--muted); font-size:13px; }
 
 .wa-tabs{ display:flex; gap:4px; background:var(--surface-2); padding:4px; border-radius:12px; }
-.wa-tab{
-  font-family:var(--body); font-weight:600; font-size:13px; color:var(--muted);
-  border:none; background:transparent; padding:7px 13px; border-radius:9px; cursor:pointer;
-}
+.wa-tab{ font-family:var(--body); font-weight:600; font-size:13px; color:var(--muted);
+  border:none; background:transparent; padding:7px 13px; border-radius:9px; cursor:pointer; }
 .wa-tab:hover{ color:var(--ink); }
 .wa-tab.is-active{ background:var(--ink); color:#fff; }
 
 .wa-tools{ display:flex; align-items:center; gap:8px; }
-.wa-iconbtn{
-  width:34px; height:34px; border-radius:10px; border:1px solid var(--line);
-  background:var(--surface); color:var(--ink); font-size:18px; line-height:1; cursor:pointer;
-}
+.wa-nav{ display:flex; align-items:center; gap:6px; }
+.wa-iconbtn{ width:34px; height:34px; border-radius:10px; border:1px solid var(--line);
+  background:var(--surface); color:var(--ink); font-size:18px; line-height:1; cursor:pointer; }
 .wa-iconbtn:hover{ background:var(--surface-2); }
-.wa-today{
-  border:1px solid var(--line); background:var(--surface); color:var(--ink);
-  font-family:var(--body); font-weight:600; font-size:13px; padding:8px 12px; border-radius:10px; cursor:pointer;
-}
+.wa-today{ border:1px solid var(--line); background:var(--surface); color:var(--ink);
+  font-family:var(--body); font-weight:600; font-size:13px; padding:8px 12px; border-radius:10px; cursor:pointer; }
 .wa-today:hover{ background:var(--surface-2); }
 
 .wa-main{ margin-top:16px; }
 
-/* Generic card + buttons (shell) */
+/* Generic card + buttons + inputs (shell chrome) */
 .wa-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
 .wa-btn{ font-family:var(--body); font-weight:600; font-size:14px; padding:10px 16px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; }
 .wa-btn:hover{ background:var(--surface-2); }
@@ -86,17 +76,10 @@
 .wa-btn--danger{ color:var(--red); border-color:#f3c5bf; background:#fdf1ef; }
 .wa-btn--block{ width:100%; display:block; }
 .wa-btn:disabled{ opacity:.55; cursor:default; }
-
 .wa-input{ width:100%; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 13px; color:var(--ink); outline:none; font-size:16px; font-family:var(--body); }
 .wa-input:focus{ border-color:var(--ink); }
 .wa-label{ display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-weight:600; }
 .wa-field{ margin-bottom:14px; }
-
-/* Placeholder panels for the not-yet-built views */
-.wa-soon{ text-align:center; padding:54px 20px; color:var(--muted); }
-.wa-soon__glyph{ font-family:var(--display); font-size:44px; color:var(--line); margin-bottom:10px; }
-.wa-soon h2{ font-family:var(--display); font-weight:700; font-size:20px; color:var(--ink); margin:0 0 6px; }
-.wa-soon p{ margin:4px 0 0; font-size:14px; }
 
 /* Sync pill */
 .wa-sync{ display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:7px 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--muted); }
@@ -107,34 +90,113 @@
 .wa-sync.error{ border-color:#f3c5bf; color:var(--red); }
 .wa-sync.error .dot{ background:var(--red); }
 
-/* Data probe (proves the backend round-trip works in the shell) */
+/* Data probe (proves the backend round-trip; only when configured) */
 .wa-probe{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:14px 0; }
 .wa-probe__cell{ background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center; }
 .wa-probe__n{ font-family:var(--display); font-weight:800; font-size:26px; }
 .wa-probe__k{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:2px; }
-.wa-probe__tokens{ display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
 .wa-probe__row{ display:flex; gap:10px; flex-wrap:wrap; }
 
-/* Token (from prototype - shell uses it in the probe) */
+/* Now: scrubber */
+.wa-scrub{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px 18px; margin-bottom:14px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
+.wa-scrub__label{ display:flex; align-items:center; gap:10px; font-size:18px; font-weight:600; }
+.wa-livedot{ font-family:var(--body); font-size:11px; font-weight:600; color:var(--green); text-transform:uppercase; letter-spacing:.08em; display:inline-flex; align-items:center; gap:5px; }
+.wa-livedot::before{ content:""; width:7px; height:7px; border-radius:50%; background:var(--green); display:inline-block; animation:wa-pulse 1.8s infinite; }
+.wa-scrub__hint{ font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.08em; }
+.wa-range{ width:100%; margin:12px 0 4px; accent-color:var(--ink); }
+.wa-scrub__ticks{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--muted); }
+
+/* Now: board */
+.wa-board{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; }
+.wa-place{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; box-shadow:0 1px 2px rgba(25,33,43,.04); animation:wa-rise .35s ease both; }
+.wa-place--home{ background:linear-gradient(180deg,#FFFFFF, #FBFCFE); }
+.wa-place__head{ display:flex; align-items:baseline; justify-content:space-between; margin-bottom:12px; }
+.wa-place__name{ font-family:var(--display); font-weight:700; font-size:17px; margin:0; letter-spacing:-.01em; }
+.wa-place__addr{ display:block; font-size:11px; color:var(--muted); margin-top:1px; }
+.wa-place__count{ font-family:var(--mono); font-size:13px; color:var(--muted); }
+.wa-place__tokens{ display:flex; flex-wrap:wrap; gap:12px 14px; }
+.wa-place__person{ display:flex; flex-direction:column; align-items:center; gap:5px; width:52px; animation:wa-pop .3s ease both; }
+.wa-place__pname{ font-size:11px; color:var(--muted); text-align:center; line-height:1.1; }
+.wa-place__sub{ font-size:9px; color:var(--blue); font-family:var(--mono); text-align:center; line-height:1.1; }
+
+/* Token */
 .wa-token{ display:inline-flex; align-items:center; justify-content:center; position:relative; font-family:var(--mono); font-weight:600; flex:none; box-shadow:0 1px 2px rgba(25,33,43,.18); }
 .wa-token--pet .wa-paw{ position:absolute; right:-3px; bottom:-3px; }
+.wa-token--half{ position:relative; }
+.wa-token--half::after{ content:""; position:absolute; top:8%; bottom:8%; left:50%; width:1px; background:rgba(255,255,255,.55); }
 .wa-paw{ filter:drop-shadow(0 0 1px rgba(0,0,0,.25)); }
 
-/* Legend footer */
+/* Day view */
+.wa-day{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:8px 14px 14px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
+.wa-day__axis{ display:flex; }
+.wa-day__axisPad{ width:96px; flex:none; }
+.wa-day__hours{ position:relative; flex:1; height:22px; }
+.wa-day__hour{ position:absolute; transform:translateX(-50%); font-family:var(--mono); font-size:10px; color:var(--muted); top:6px; }
+.wa-lane{ display:flex; align-items:center; gap:0; height:40px; border-top:1px solid var(--surface-2); }
+.wa-lane__who{ width:96px; flex:none; display:flex; align-items:center; gap:8px; }
+.wa-lane__name{ font-size:12px; font-weight:600; }
+.wa-lane__track{ position:relative; flex:1; height:30px; }
+.wa-seg{ position:absolute; top:3px; height:24px; border-radius:6px; display:flex; align-items:center; padding:0 7px; overflow:hidden; }
+.wa-seg--home{ opacity:.6; }
+.wa-seg__label{ font-size:11px; font-weight:600; white-space:nowrap; }
+.wa-nowline{ position:absolute; top:-2px; bottom:-2px; width:2px; background:var(--green); z-index:3; }
+.wa-nowline::before{ content:""; position:absolute; top:-3px; left:-3px; width:8px; height:8px; border-radius:50%; background:var(--green); }
+
+/* Week matrix */
+.wa-week__scroll{ overflow-x:auto; background:var(--surface); border:1px solid var(--line); border-radius:16px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
+.wa-matrix{ border-collapse:separate; border-spacing:0; width:100%; min-width:560px; }
+.wa-matrix th, .wa-matrix td{ padding:0; }
+.wa-matrix__corner{ text-align:left; padding:12px 14px; font-size:12px; color:var(--muted); position:sticky; left:0; background:var(--surface); z-index:2; }
+.wa-matrix__day{ padding:10px 6px; text-align:center; cursor:pointer; border-bottom:1px solid var(--line); }
+.wa-matrix__day.is-today .wa-matrix__dd{ background:var(--ink); color:#fff; border-radius:8px; padding:1px 7px; }
+.wa-matrix__dn{ display:block; font-size:11px; color:var(--muted); }
+.wa-matrix__dd{ display:inline-block; font-family:var(--display); font-weight:700; font-size:15px; }
+.wa-matrix__who{ display:flex; align-items:center; gap:8px; padding:8px 14px; font-size:13px; font-weight:600; position:sticky; left:0; background:var(--surface); z-index:1; border-top:1px solid var(--surface-2); white-space:nowrap; }
+.wa-cell{ text-align:center; font-size:12px; font-weight:600; padding:10px 4px; border-top:1px solid var(--surface-2); cursor:pointer; }
+.wa-cell--home{ color:var(--muted); font-weight:500; }
+.wa-cell--journey{ font-size:10px; line-height:1.15; }
+.wa-cell__arr{ color:var(--muted); }
+
+/* Month */
+.wa-month{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
+.wa-month__dow{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; margin-bottom:6px; }
+.wa-month__dow span{ text-align:center; font-size:11px; color:var(--muted); font-weight:600; }
+.wa-month__grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+.wa-mday{ aspect-ratio:1/1.05; border:1px solid var(--surface-2); background:var(--surface-2); border-radius:10px; padding:6px; cursor:pointer; display:flex; flex-direction:column; align-items:flex-start; gap:4px; }
+.wa-mday.is-out{ opacity:.4; }
+.wa-mday.is-today{ outline:2px solid var(--ink); }
+.wa-mday.is-trip{ background:rgba(14,165,233,.12); border-color:rgba(14,165,233,.32); }
+.wa-mday.is-board{ background:rgba(124,74,45,.12); border-color:rgba(124,74,45,.3); }
+.wa-mday__n{ font-family:var(--display); font-weight:700; font-size:13px; }
+.wa-mday__dots{ display:flex; flex-wrap:wrap; gap:3px; align-content:flex-start; }
+.wa-dot{ width:8px; height:8px; border-radius:50%; }
+.wa-dot__more{ font-size:9px; color:var(--muted); font-family:var(--mono); }
+
+/* Year */
+.wa-year{ display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:16px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
+.wa-ymonth__label{ font-family:var(--display); font-weight:700; font-size:14px; margin:0 0 6px; background:none; border:none; cursor:pointer; color:var(--ink); padding:0; }
+.wa-ymonth__grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
+.wa-ycell{ aspect-ratio:1; border-radius:2px; }
+
+/* Legend + footer note */
 .wa-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:16px; padding:12px 16px; background:var(--surface); border:1px solid var(--line); border-radius:14px; }
 .wa-legend__item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
 .wa-hint{ font-size:12.5px; color:var(--muted); line-height:1.5; }
+.wa-previewnote{ margin-top:10px; font-size:12px; color:var(--muted); text-align:center; }
 
-/* Settings drawer (from prototype) */
+/* Settings drawer */
 .wa-scrim{ position:fixed; inset:0; background:rgba(25,33,43,.32); z-index:40; }
 .wa-drawer{ position:fixed; top:0; right:0; bottom:0; width:340px; max-width:90vw; background:var(--surface); z-index:50; padding:18px; overflow-y:auto; box-shadow:-8px 0 28px rgba(25,33,43,.16); animation:wa-slide .25s ease both; }
 .wa-drawer__head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
 .wa-drawer__head h2{ font-family:var(--display); font-weight:700; font-size:18px; margin:0; }
 .wa-x{ border:none; background:none; font-size:24px; line-height:1; cursor:pointer; color:var(--muted); }
 .wa-set__group{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:16px 0 8px; }
-.wa-set__row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--surface-2); font-size:14px; }
+.wa-set__row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--surface-2); font-size:14px; }
 .wa-set__row b{ font-weight:600; }
-.wa-actrow{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; padding:12px 0; border-bottom:1px solid var(--surface-2); background:none; border-left:none; border-right:none; border-top:none; cursor:pointer; font-family:var(--body); font-size:14px; color:var(--ink); }
+.wa-set__name{ flex:1; font-size:14px; font-weight:500; }
+.wa-set__color{ width:38px; height:30px; border:1px solid var(--line); border-radius:8px; background:none; cursor:pointer; padding:2px; }
+.wa-set__reset{ margin-top:14px; width:100%; padding:10px; border:1px solid var(--line); background:var(--surface-2); border-radius:10px; font-weight:600; cursor:pointer; font-family:var(--body); }
+.wa-actrow{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; padding:12px 0; border-bottom:1px solid var(--surface-2); background:none; border:none; cursor:pointer; font-family:var(--body); font-size:14px; color:var(--ink); }
 .wa-actrow span{ font-size:12px; color:var(--muted); }
 
 /* Update banner */
@@ -153,8 +215,13 @@
 .wa-login__title{ font-family:var(--display); font-weight:800; font-size:32px; margin:4px 0 0; letter-spacing:-.02em; }
 .wa-notice{ background:#fdf6e3; border:1px solid #e7d8a8; color:#7a5a00; border-radius:10px; padding:10px 12px; font-size:13px; margin-top:14px; }
 
+/* Toast */
+.wa-toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:9px 16px; border-radius:999px; font-size:13.5px; z-index:60; box-shadow:0 8px 24px rgba(25,33,43,.3); }
+
 @keyframes wa-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
 @keyframes wa-slide{ from{ transform:translateX(20px); opacity:.6; } to{ transform:none; opacity:1; } }
+@keyframes wa-rise{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
+@keyframes wa-pop{ from{ opacity:0; transform:scale(.85); } to{ opacity:1; transform:none; } }
 @media (prefers-reduced-motion: reduce){ .wa-root *{ animation:none !important; } }
 
 @media (max-width:680px){
@@ -162,7 +229,7 @@
   .wa-brand{ margin-right:0; width:100%; }
   .wa-tabs{ order:3; width:100%; justify-content:space-between; }
   .wa-tools{ margin-left:auto; }
-  .wa-probe{ grid-template-columns:repeat(3,1fr); }
+  .wa-board{ grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); }
 }
 </style>
 </head>
@@ -173,13 +240,10 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
 /* ============================================================
    LOGGING - module-level ring buffer, ASCII-only bracketed tags.
-   Phones have no console, so Settings -> Diagnostics renders this.
    ============================================================ */
 const LOG_CAP = 600;
 const LOG = [];
-// Build stamp. Bump on every deploy so the on-screen version and the boot log
-// tell you whether the installed PWA picked up the latest index.html.
-const BUILD = "2026-06-29.1";
+const BUILD = "2026-06-29.2";
 function log(tag, msg){
   const line = { t: new Date().toISOString().slice(11,19), tag, msg: String(msg) };
   LOG.push(line);
@@ -201,11 +265,12 @@ const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.g
 function startOfWeek(d){ const x=new Date(d); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x; }
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 
-/* ---- Color utilities (from prototype; the probe + step-2 tokens use them) -- */
+/* ---- Color utilities ---- */
 function hexToRgb(hex){
   const h = hex.replace("#",""); const v = h.length===3 ? h.split("").map(c=>c+c).join("") : h;
   return { r:parseInt(v.slice(0,2),16), g:parseInt(v.slice(2,4),16), b:parseInt(v.slice(4,6),16) };
 }
+function rgba(hex, a){ const { r,g,b } = hexToRgb(hex); return `rgba(${r}, ${g}, ${b}, ${a})`; }
 function readableText(hex){
   const { r,g,b } = hexToRgb(hex);
   const lum = (0.299*r + 0.587*g + 0.114*b)/255;
@@ -217,34 +282,177 @@ function firstName(name){
 }
 
 /* ============================================================
+   FAMILY + PLACES (seed data). Colors are defaults; editable in
+   Settings. STEP 3/4 will source these from the entities/places
+   collections instead of these constants.
+   ============================================================ */
+const SEED_ENTITIES = [
+  { id:"chris",     name:"Pops",      short:"Po", kind:"person", color:"#1E40AF" },
+  { id:"kristin",   name:"Kristin",   short:"Kr", kind:"person", color:"#DB2777" },
+  { id:"jenna",     name:"Jenna",     short:"Je", kind:"person", color:"#0D9488" },
+  { id:"cjr",       name:"Chris Jr.", short:"CJ", kind:"person", color:"#EA580C" },
+  { id:"samuel",    name:"Samuel",    short:"Sa", kind:"person", color:"#6D28D9" },
+  { id:"hank",      name:"Hank",      short:"Ha", kind:"person", color:"#DC2626" },
+  { id:"molly",     name:"Molly",     short:"Mo", kind:"person", color:"#D97706" },
+  { id:"bellarose", name:"Bellarose", short:"Br", kind:"person", color:"#F472B6" },
+  { id:"gracieann", name:"Gracieann", short:"Gr", kind:"person", color:"#0EA5E9" },
+  { id:"sophia",    name:"Sophia",    short:"So", kind:"person", color:"#16A34A" },
+  { id:"gus",       name:"Gus",       short:"Gu", kind:"pet",    color:"#18181B" },
+  { id:"graham",    name:"Graham",    short:"Gh", kind:"pet",    color:"#7C4A2D" },
+  { id:"lola",      name:"Lola",      short:"Lo", kind:"pet",    color:"#FFFFFF" },
+];
+
+const PLACES = {
+  sanantonio:  { id:"sanantonio",  name:"San Antonio", full:"Spring Branch · San Antonio area", kind:"metro" },
+  dallas:      { id:"dallas",      name:"Dallas",      full:"Dallas, TX (house & apartments)",       kind:"metro" },
+  austin:      { id:"austin",      name:"Austin",      full:"Austin · Buda, TX",                kind:"metro" },
+  boston:      { id:"boston",      name:"Boston",      full:"Boston, MA · school & summer work", kind:"metro" },
+  dads:        { id:"dads",        name:"Dad's",       full:"Sophia's dad's house",                  kind:"custody" },
+  office:      { id:"office",      name:"Office",      full:"At the office",                         kind:"work" },
+  auburn:      { id:"auburn",      name:"Auburn",      full:"Auburn, AL · school",               kind:"school" },
+  jordanvalley:{ id:"jordanvalley",name:"Boarding",    full:"Jordan Valley Retrievers (kennel)",     kind:"boarding" },
+};
+const PLACE_ORDER = ["sanantonio","dallas","austin","boston","dads","office","auburn","jordanvalley"];
+
+const HOME_OF = {
+  chris:"sanantonio", kristin:"sanantonio", jenna:"austin", hank:"sanantonio", cjr:"dallas",
+  molly:"sanantonio", samuel:"sanantonio", bellarose:"sanantonio", gracieann:"sanantonio", sophia:"sanantonio",
+  gus:"sanantonio", graham:"sanantonio", lola:"sanantonio",
+};
+
+/* ============================================================
+   PLACEMENT RESOLVER (ported from the prototype). Precedence,
+   most-specific first: journey > pin > trip > custody > rule.
+   STEP 4 repoints the PINS/TRIPS/JOURNEYS/CUSTODY sources to read
+   the `placements` collection in the store; the precedence stays.
+   ============================================================ */
+function ymdNum(date){ return date.getFullYear()*10000 + (date.getMonth()+1)*100 + date.getDate(); }
+function strToYmd(s){ const a=s.split("-").map(Number); return a[0]*10000 + a[1]*100 + a[2]; }
+
+const TRIPS = [];
+function tripPlace(entityId, date){
+  const key = ymdNum(date);
+  for(const t of TRIPS){ if(t.id!==entityId) continue; if(key>=strToYmd(t.start) && key<=strToYmd(t.end)) return t.place; }
+  return null;
+}
+
+const PINS = [
+  { id:"cjr", place:"dallas", date:"2026-06-09" },
+  { id:"jenna", place:"dallas", date:"2026-06-09" },
+  { id:"molly", place:"dallas", date:"2026-06-09" },
+  { id:"samuel", place:"dallas", date:"2026-06-09" },
+  { id:"graham", place:"dallas", date:"2026-06-09" },
+  { id:"gus", place:"dallas", date:"2026-06-09" },
+  { id:"hank", place:"boston", date:"2026-06-09" },
+  { id:"kristin", place:"sanantonio", date:"2026-06-09" },
+  { id:"bellarose", place:"sanantonio", date:"2026-06-09" },
+  { id:"gracieann", place:"sanantonio", date:"2026-06-09" },
+  { id:"sophia", place:"sanantonio", date:"2026-06-09" },
+  { id:"lola", place:"sanantonio", date:"2026-06-09" },
+];
+function pinPlace(entityId, date){
+  const key = ymdNum(date);
+  for(const p of PINS) if(p.id===entityId && strToYmd(p.date)===key) return p.place;
+  return null;
+}
+
+const CUSTODY = { kids:new Set(["sophia"]), place:"dads" };
+function custodyPlace(entityId, date){
+  if(!CUSTODY.kids.has(entityId)) return null;
+  const day = date.getDay();
+  if(day!==0 && day!==6) return null;
+  const start = new Date(date.getFullYear(), 0, 1);
+  const week = Math.floor((date - start) / (7*86400000));
+  return week % 2 === 0 ? CUSTODY.place : null;
+}
+
+const JOURNEYS = [
+  { id:"chris", from:"sanantonio", to:"dallas", date:"2026-06-09" },
+];
+function journeyOf(entityId, date){
+  const key = ymdNum(date);
+  for(const j of JOURNEYS) if(j.id===entityId && strToYmd(j.date)===key) return j;
+  return null;
+}
+
+const isSummer = (d) => { const m=d.getMonth(); return m>=5 && m<=7; };
+const isTerm = (d) => !isSummer(d);
+function gusBoarding(date){ const dom=date.getDate(), day=date.getDay(); return (day===0||day===6) && dom>=8 && dom<=14; }
+
+function placementAt(entityId, date){
+  const day = date.getDay();
+  const h = date.getHours();
+  const weekday = day>=1 && day<=5;
+
+  const jr = journeyOf(entityId, date);
+  if(jr) return h < 14 ? jr.from : jr.to;
+  const pin = pinPlace(entityId, date);
+  if(pin) return pin;
+  const trip = tripPlace(entityId, date);
+  if(trip) return trip;
+  const cust = custodyPlace(entityId, date);
+  if(cust) return cust;
+
+  switch(entityId){
+    case "chris":   if(!weekday) return "sanantonio"; return h>=8 && h<18 ? "office" : "dallas";
+    case "kristin": return "sanantonio";
+    case "jenna":
+      if(isTerm(date)) return "austin";
+      if(!weekday) return "austin";
+      return h>=9 && h<17 ? "office" : "dallas";
+    case "cjr":     return "dallas";
+    case "hank":    return "boston";
+    case "molly":   return isTerm(date) ? "auburn" : "sanantonio";
+    case "samuel":
+    case "bellarose":
+    case "gracieann":
+    case "sophia":  return "sanantonio";
+    case "gus":     return gusBoarding(date) ? "jordanvalley" : "sanantonio";
+    case "graham":  return "sanantonio";
+    case "lola":    return "sanantonio";
+    default:        return "sanantonio";
+  }
+}
+
+function dayPlacement(entityId, date){
+  const counts = {};
+  for(let h=8; h<=18; h++){
+    const probe = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h);
+    const loc = placementAt(entityId, probe);
+    counts[loc] = (counts[loc]||0) + 1;
+  }
+  const home = HOME_OF[entityId];
+  let best = placementAt(entityId, new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12));
+  let bestN = -1;
+  for(const [loc,n] of Object.entries(counts)){
+    const weight = loc===home ? n*0.5 : n;
+    if(weight > bestN){ bestN = weight; best = loc; }
+  }
+  return best;
+}
+
+/* ============================================================
    LOCAL STORAGE LAYER (namespaced "whereabouts:")
-   Source of truth at rest = the backend (Supabase); this is the
-   offline cache, identical pattern to Tracker.
    ============================================================ */
 const NS = "whereabouts:";
 const lsGet = (k, fb) => { try { const v = localStorage.getItem(NS+k); return v===null ? fb : JSON.parse(v); } catch(e){ log("ERROR","lsGet "+k+": "+e.message); return fb; } };
 const lsSet = (k, v) => { try { localStorage.setItem(NS+k, JSON.stringify(v)); } catch(e){ log("ERROR","lsSet "+k+": "+e.message); } };
 const lsDel = (k) => { try { localStorage.removeItem(NS+k); } catch(e){} };
 
-// The three data collections. Resolution (placementAt) runs client-side over these.
 const FILES = ["entities","places","placements"];
 
 /* ============================================================
    BACKEND + AUTH CONFIG
-   PUBLIC-SAFE values, intentionally shipped in the browser. The real
-   secrets (Supabase service-role key, any AI key) live ONLY on the
-   Railway backend. Fill these three in once the Whereabouts Supabase
-   project + Railway service exist.
+   PUBLIC-SAFE values. Fill these once the Whereabouts Supabase
+   project + Railway service exist. Until then CONFIGURED is false
+   and the app runs as a LOCAL PREVIEW (no login, seed family).
    ============================================================ */
 const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";        // TODO: Whereabouts Supabase project URL
 const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";             // TODO: Whereabouts anon (public) key
 const API_BASE = "https://YOUR-RAILWAY-APP.up.railway.app";     // TODO: whereabouts-backend Railway URL
 
-// True once the three constants above are real (not the placeholders).
 const CONFIGURED = !SUPABASE_URL.includes("YOUR-") && !SUPABASE_ANON_KEY.includes("YOUR_") && !API_BASE.includes("YOUR-");
 
-// Supabase client - AUTH ONLY (login, session, token refresh). Data never
-// touches it; it flows through our backend with the user's access token.
 const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage, storageKey: "whereabouts-auth" }
 });
@@ -256,10 +464,6 @@ async function authToken(){
 
 /* ============================================================
    BACKEND COLLECTIONS API
-   GET  /api/collection/<name> -> the whole array
-   PUT  /api/collection/<name> -> replace the whole array
-   Whole-collection load/save; the backend stores per-record rows and
-   the PUT replaces wholesale (no SHA/conflict dance).
    ============================================================ */
 async function collGet(file){
   const token = await authToken();
@@ -292,16 +496,12 @@ async function collPut(file, data){
 
 /* ============================================================
    DATA STORE HOOK
-   Holds all collections in memory + localStorage. Optimistic local
-   writes, then push to the backend. Dirty files retry on next sync /
-   when the device comes back online. Carried from Tracker, trimmed to
-   the generic CRUD the shell needs (the task-domain helpers are gone).
    ============================================================ */
 function useStore(){
   const [cfg, setCfg] = useState(() => lsGet("cfg", { appName:"Whereabouts" }));
   const [data, setData] = useState(() => { const d={}; FILES.forEach(f => d[f]=lsGet("cache:"+f, [])); return d; });
   const [dirty, setDirty] = useState(() => lsGet("dirty", {}));
-  const [sync, setSync] = useState("idle");      // idle | busy | pending | error
+  const [sync, setSync] = useState("idle");
   const [syncMsg, setSyncMsg] = useState("");
   const [online, setOnline] = useState(navigator.onLine);
   const [authed, setAuthed] = useState(false);
@@ -333,10 +533,7 @@ function useStore(){
       }
       setSync("idle"); setSyncMsg("");
       log("SYNC","push complete");
-    }catch(e){
-      setSync("error"); setSyncMsg(e.message||"Sync failed");
-      log("ERROR","pushDirty: "+e.message);
-    }
+    }catch(e){ setSync("error"); setSyncMsg(e.message||"Sync failed"); log("ERROR","pushDirty: "+e.message); }
   }, []);
 
   const pull = useCallback(async () => {
@@ -357,7 +554,6 @@ function useStore(){
     }catch(e){ setSync("error"); setSyncMsg(e.message||"Sync failed"); log("ERROR","pull: "+e.message); }
   }, [pushDirty]);
 
-  // ----- Auth -----
   const applySession = useCallback((session) => {
     const ok = !!session;
     const was = authedRef.current;
@@ -388,6 +584,7 @@ function useStore(){
   }, []);
 
   useEffect(() => {
+    if(!CONFIGURED){ setAuthReady(true); return; }   // local preview: no auth subscription
     let sub = null;
     (async () => {
       try{ const { data } = await supa.auth.getSession(); applySession(data.session); }
@@ -411,7 +608,6 @@ function useStore(){
     return () => clearInterval(id);
   }, [pushDirty]);
 
-  // Generic upsert/remove (used by step-3 editors and the shell's sync probe).
   const upsert = useCallback((file, row) => {
     const list = dataRef.current[file] || [];
     const i = list.findIndex(x => x.id === row.id);
@@ -439,7 +635,7 @@ function useStore(){
 }
 
 /* ============================================================
-   SHARED COMPONENTS
+   TOKENS
    ============================================================ */
 function Token({ entity, size=34, title }){
   const txt = readableText(entity.color);
@@ -459,23 +655,280 @@ function Token({ entity, size=34, title }){
     </div>
   );
 }
-
-function ViewSoon({ name }){
+function HalfToken({ entity, size=38, title }){
+  const txt = readableText(entity.color);
+  const needsBorder = entity.color.toUpperCase() === "#FFFFFF";
   return (
-    <div className="wa-card">
-      <div className="wa-soon">
-        <div className="wa-soon__glyph">{"✧"}</div>
-        <h2>{name} view</h2>
-        <p>The five views port from the prototype in step 2.</p>
-        <p className="wa-hint" style={{marginTop:10}}>This shell proves auth + sync are live. Once the views are wired, this becomes the {name.toLowerCase()} map.</p>
+    <div className="wa-token wa-token--half" title={title||entity.name}
+      style={{ width:size, height:size, borderRadius:"50%",
+        background:`linear-gradient(90deg, ${entity.color} 0 50%, ${rgba(entity.color, 0.18)} 50% 100%)`,
+        color:txt, fontSize:size*0.34, border:needsBorder?"1.5px solid #C7CDD6":`1.5px solid ${entity.color}`,
+        textShadow:"0 1px 2px rgba(0,0,0,.4)" }}>
+      {entity.short}
+    </div>
+  );
+}
+
+/* ============================================================
+   NOW BOARD (hero)
+   ============================================================ */
+function NowBoard({ entities, cursor, setCursor, isLive }){
+  const groups = useMemo(() => {
+    const g = {};
+    entities.forEach((e) => {
+      const jr = journeyOf(e.id, cursor);
+      if(jr){
+        (g[jr.from] = g[jr.from] || []).push({ e, half:"from", other:jr.to });
+        (g[jr.to] = g[jr.to] || []).push({ e, half:"to", other:jr.from });
+      } else {
+        const loc = placementAt(e.id, cursor);
+        (g[loc] = g[loc] || []).push({ e, half:null });
+      }
+    });
+    return g;
+  }, [entities, cursor]);
+
+  const occupied = PLACE_ORDER.filter((l) => groups[l] && groups[l].length);
+  const hour = cursor.getHours();
+  const setHour = (h) => { const x=new Date(cursor); x.setHours(h,0,0,0); setCursor(x); };
+  const ampm = (h) => `${((h+11)%12)+1} ${h<12?"AM":"PM"}`;
+
+  return (
+    <div>
+      <div className="wa-scrub">
+        <div className="wa-scrub__label">
+          <span className="wa-mono">{ampm(hour)}</span>
+          {isLive ? <span className="wa-livedot">live</span> : <span className="wa-scrub__hint">scrubbing</span>}
+        </div>
+        <input className="wa-range" type="range" min="0" max="23" value={hour}
+          onChange={(e)=>setHour(Number(e.target.value))} aria-label="Time of day" />
+        <div className="wa-scrub__ticks"><span>6 AM</span><span>Noon</span><span>6 PM</span><span>Midnight</span></div>
+      </div>
+
+      <div className="wa-board">
+        {occupied.map((locId) => {
+          const loc = PLACES[locId];
+          const here = groups[locId];
+          const isMetro = loc.kind === "metro";
+          return (
+            <section key={locId} className={"wa-place"+(isMetro?" wa-place--home":"")}>
+              <header className="wa-place__head">
+                <div>
+                  <h3 className="wa-place__name">{loc.name}</h3>
+                  <span className="wa-place__addr">{loc.full}</span>
+                </div>
+                <span className="wa-place__count">{here.length}</span>
+              </header>
+              <div className="wa-place__tokens">
+                {here.map(({ e, half, other }) => (
+                  <div key={e.id} className="wa-place__person">
+                    {half
+                      ? <HalfToken entity={e} size={38} title={`${e.name}: ${PLACES[half==="from"?locId:other].name} → ${PLACES[half==="from"?other:locId].name}`} />
+                      : <Token entity={e} size={38} />}
+                    <span className="wa-place__pname">{firstName(e.name)}</span>
+                    {half==="from" && <span className="wa-place__sub">{"→ " + PLACES[other].name}</span>}
+                    {half==="to" && <span className="wa-place__sub">{PLACES[other].name + " →"}</span>}
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-/* The Now tab also carries a live SYNC PROBE so we can confirm the backend
-   round-trip end to end before the real data-entry UI exists: add a sample
-   entity, watch it persist + sync, reload to confirm it came back, then clear. */
+/* ============================================================
+   DAY VIEW (swimlanes)
+   ============================================================ */
+function DayView({ entities, cursor }){
+  const START=6, END=22;
+  const span = END-START;
+  const today = sameDay(cursor, new Date());
+  const nowFrac = today ? (new Date().getHours() + new Date().getMinutes()/60 - START)/span : null;
+
+  const lanes = entities.map((e) => {
+    const segs = [];
+    for(let h=START; h<END; h++){
+      const probe = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), h);
+      const loc = placementAt(e.id, probe);
+      const last = segs[segs.length-1];
+      if(last && last.loc===loc) last.e = h+1;
+      else segs.push({ loc, s:h, e:h+1 });
+    }
+    return { entity:e, segs };
+  });
+
+  return (
+    <div className="wa-day">
+      <div className="wa-day__axis">
+        <div className="wa-day__axisPad" />
+        <div className="wa-day__hours">
+          {Array.from({ length:span+1 }).map((_, i) => (
+            <span key={i} className="wa-day__hour" style={{ left:`${(i/span)*100}%` }}>{((START+i+11)%12)+1}</span>
+          ))}
+        </div>
+      </div>
+      <div className="wa-day__grid">
+        {lanes.map(({ entity, segs }) => (
+          <div key={entity.id} className="wa-lane">
+            <div className="wa-lane__who">
+              <Token entity={entity} size={28} />
+              <span className="wa-lane__name">{firstName(entity.name)}</span>
+            </div>
+            <div className="wa-lane__track">
+              {nowFrac!=null && nowFrac>=0 && nowFrac<=1 && <div className="wa-nowline" style={{ left:`${nowFrac*100}%` }} />}
+              {segs.map((seg, i) => {
+                const isHome = seg.loc === HOME_OF[entity.id];
+                return (
+                  <div key={i} className={"wa-seg"+(isHome?" wa-seg--home":"")}
+                    style={{ left:`${((seg.s-START)/span)*100}%`, width:`${((seg.e-seg.s)/span)*100}%`,
+                      background:isHome?"transparent":rgba(entity.color,0.16),
+                      borderLeft:isHome?"none":`3px solid ${entity.color}`, color:isHome?"var(--muted)":"var(--ink)" }}>
+                    <span className="wa-seg__label">{PLACES[seg.loc].name}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   WEEK VIEW (matrix)
+   ============================================================ */
+function WeekView({ entities, cursor, onPickDay }){
+  const sow = startOfWeek(cursor);
+  const days = Array.from({ length:7 }).map((_, i) => addDays(sow, i));
+  const today = new Date();
+  return (
+    <div className="wa-week">
+      <div className="wa-week__scroll">
+        <table className="wa-matrix">
+          <thead>
+            <tr>
+              <th className="wa-matrix__corner">Who</th>
+              {days.map((d) => (
+                <th key={d.toISOString()} className={"wa-matrix__day"+(sameDay(d,today)?" is-today":"")} onClick={()=>onPickDay(d)}>
+                  <span className="wa-matrix__dn">{DAY_NAMES[d.getDay()]}</span>
+                  <span className="wa-matrix__dd">{d.getDate()}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {entities.map((e) => (
+              <tr key={e.id}>
+                <th className="wa-matrix__who" scope="row"><Token entity={e} size={24} /><span>{firstName(e.name)}</span></th>
+                {days.map((d) => {
+                  const jr = journeyOf(e.id, d);
+                  if(jr){
+                    return (
+                      <td key={d.toISOString()} className="wa-cell wa-cell--journey"
+                        style={{ background:`linear-gradient(135deg, ${rgba(e.color,0.26)} 0 50%, ${rgba(e.color,0.10)} 50% 100%)`, boxShadow:`inset 3px 0 0 ${e.color}` }}
+                        onClick={()=>onPickDay(d)} title={`${PLACES[jr.from].name} → ${PLACES[jr.to].name}`}>
+                        {PLACES[jr.from].name}<span className="wa-cell__arr"> {"→"} </span>{PLACES[jr.to].name}
+                      </td>
+                    );
+                  }
+                  const loc = dayPlacement(e.id, d);
+                  const isHome = loc === HOME_OF[e.id];
+                  return (
+                    <td key={d.toISOString()} className={"wa-cell"+(isHome?" wa-cell--home":"")}
+                      style={isHome?{}:{ background:rgba(e.color,0.15), boxShadow:`inset 3px 0 0 ${e.color}` }} onClick={()=>onPickDay(d)}>
+                      {PLACES[loc].name}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="wa-hint" style={{margin:"10px 4px 0"}}>Tap a day to open it. Read a column to see where everyone is that day; read a row to follow one person across the week.</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   MONTH VIEW
+   ============================================================ */
+function MonthView({ entities, cursor, onPickDay }){
+  const y = cursor.getFullYear(), m = cursor.getMonth();
+  const first = new Date(y, m, 1);
+  const gridStart = startOfWeek(first);
+  const today = new Date();
+  const cells = Array.from({ length:42 }).map((_, i) => addDays(gridStart, i));
+  return (
+    <div className="wa-month">
+      <div className="wa-month__dow">{DAY_NAMES.map((d) => <span key={d}>{d}</span>)}</div>
+      <div className="wa-month__grid">
+        {cells.map((d) => {
+          const inMonth = d.getMonth() === m;
+          const away = entities.map((e) => ({ e, loc:dayPlacement(e.id, d) })).filter((x) => x.loc !== HOME_OF[x.e.id]);
+          const tripDay = away.some((x) => PLACES[x.loc].kind === "metro" && false); // trips land here once placements drive it
+          const boardingDay = away.some((x) => x.loc === "jordanvalley");
+          return (
+            <button key={d.toISOString()}
+              className={"wa-mday"+(inMonth?"":" is-out")+(sameDay(d,today)?" is-today":"")+(tripDay?" is-trip":"")+(boardingDay?" is-board":"")}
+              onClick={()=>onPickDay(d)}>
+              <span className="wa-mday__n">{d.getDate()}</span>
+              <span className="wa-mday__dots">
+                {away.slice(0,8).map((x, i) => (
+                  <span key={i} className="wa-dot" style={{ background:x.e.color, border:x.e.color.toUpperCase()==="#FFFFFF"?"1px solid #C7CDD6":"none" }} />
+                ))}
+                {away.length>8 && <span className="wa-dot__more">+{away.length-8}</span>}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className="wa-hint" style={{margin:"10px 4px 0"}}>Each dot is someone away from home. Quiet days mean everyone's home; days with a dog at the kennel are tinted.</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   YEAR VIEW
+   ============================================================ */
+function YearView({ entities, cursor, onPickMonth }){
+  const y = cursor.getFullYear();
+  const total = entities.length;
+  return (
+    <div className="wa-year">
+      {Array.from({ length:12 }).map((_, m) => {
+        const first = new Date(y, m, 1);
+        const gridStart = startOfWeek(first);
+        const cells = Array.from({ length:42 }).map((_, i) => addDays(gridStart, i));
+        return (
+          <div key={m} className="wa-ymonth">
+            <button className="wa-ymonth__label" onClick={()=>onPickMonth(m)}>{MONTH_ABBR[m]}</button>
+            <div className="wa-ymonth__grid">
+              {cells.map((d) => {
+                const inMonth = d.getMonth() === m;
+                let awayCount = 0;
+                if(inMonth){ entities.forEach((e) => { if(dayPlacement(e.id, d) !== HOME_OF[e.id]) awayCount++; }); }
+                const intensity = inMonth ? awayCount/total : 0;
+                const bg = !inMonth ? "transparent" : rgba("#19212B", 0.05 + intensity*0.55);
+                return <span key={d.toISOString()} className="wa-ycell" style={{ background:bg }}
+                  title={inMonth ? `${MONTH_ABBR[m]} ${d.getDate()} - ${awayCount} away` : ""} />;
+              })}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ============================================================
+   SYNC PROBE (only when the backend is configured) - proves the
+   family-account round-trip before the real data-entry UI exists.
+   ============================================================ */
 function SyncProbe({ store, toast }){
   const d = store.data;
   const SAMPLES = [
@@ -483,33 +936,17 @@ function SyncProbe({ store, toast }){
     { short:"Kr", name:"Kristin", kind:"person", color:"#DB2777" },
     { short:"Gh", name:"Graham",  kind:"pet",    color:"#7C4A2D" },
   ];
-  function addSample(){
-    const s = SAMPLES[(d.entities||[]).length % SAMPLES.length];
-    store.upsert("entities", { ...s, home:"sanantonio" });
-    toast("Added "+s.name+" - watch it sync");
-  }
-  function clearSamples(){
-    (d.entities||[]).forEach(e => store.remove("entities", e.id));
-    toast("Cleared sample entities");
-  }
+  function addSample(){ const s = SAMPLES[(d.entities||[]).length % SAMPLES.length]; store.upsert("entities", { ...s, home:"sanantonio" }); toast("Added "+s.name+" - watch it sync"); }
+  function clearSamples(){ (d.entities||[]).forEach(e => store.remove("entities", e.id)); toast("Cleared sample entities"); }
   return (
     <div className="wa-card" style={{marginBottom:16}}>
       <h2 style={{fontFamily:"var(--display)",fontWeight:700,fontSize:17,margin:"0 0 4px"}}>Sync check</h2>
-      <p className="wa-hint">A temporary panel for the shell. It writes to the real backend so we can verify the family account round-trips before building the data-entry UI.</p>
+      <p className="wa-hint">Temporary panel: it writes to the real backend so we can verify the family account round-trips before the data-entry UI lands.</p>
       <div className="wa-probe">
         <div className="wa-probe__cell"><div className="wa-probe__n">{(d.entities||[]).length}</div><div className="wa-probe__k">Entities</div></div>
         <div className="wa-probe__cell"><div className="wa-probe__n">{(d.places||[]).length}</div><div className="wa-probe__k">Places</div></div>
         <div className="wa-probe__cell"><div className="wa-probe__n">{(d.placements||[]).length}</div><div className="wa-probe__k">Placements</div></div>
       </div>
-      {(d.entities||[]).length>0 &&
-        <div className="wa-probe__tokens">
-          {(d.entities||[]).map(e => (
-            <div key={e.id} style={{display:"flex",flexDirection:"column",alignItems:"center",gap:5,width:54}}>
-              <Token entity={e} size={36}/>
-              <span style={{fontSize:11,color:"var(--muted)"}}>{firstName(e.name)}</span>
-            </div>
-          ))}
-        </div>}
       <div className="wa-probe__row">
         <button className="wa-btn wa-btn--primary" onClick={addSample}>Add sample entity</button>
         {(d.entities||[]).length>0 && <button className="wa-btn" onClick={clearSamples}>Clear</button>}
@@ -518,6 +955,9 @@ function SyncProbe({ store, toast }){
   );
 }
 
+/* ============================================================
+   SETTINGS (family colors + account + diagnostics)
+   ============================================================ */
 function Diagnostics({ onClose }){
   return (
     <div>
@@ -534,8 +974,17 @@ function Diagnostics({ onClose }){
   );
 }
 
-function Settings({ store, onClose, onCheckUpdate }){
+function Settings({ store, entities, onColor, onReset, onClose, onCheckUpdate }){
   const [diag, setDiag] = useState(false);
+  const people = entities.filter((e) => e.kind === "person");
+  const pets = entities.filter((e) => e.kind === "pet");
+  const Row = (e) => (
+    <label key={e.id} className="wa-set__row">
+      <Token entity={e} size={28} />
+      <span className="wa-set__name">{e.name}</span>
+      <input type="color" value={e.color} onChange={(ev)=>onColor(e.id, ev.target.value)} className="wa-set__color" />
+    </label>
+  );
   return (
     <>
       <div className="wa-scrim" onClick={onClose} />
@@ -547,22 +996,27 @@ function Settings({ store, onClose, onCheckUpdate }){
               <button className="wa-x" onClick={onClose} aria-label="Close">{"×"}</button>
             </div>
 
-            <p className="wa-set__group">Family account</p>
-            <div className="wa-set__row"><b>Signed in</b><span style={{marginLeft:"auto",color:"var(--muted)",fontSize:13}}>{store.authEmail||"-"}</span></div>
-            <div className="wa-set__row"><b>Sync</b><span style={{marginLeft:"auto"}}><span className={"wa-sync "+store.sync}><span className="dot"></span>{store.sync==="idle"?"Synced":store.sync==="busy"?(store.syncMsg||"Working"):store.sync==="pending"?"Queued (offline)":(store.syncMsg||"Error")}</span></span></div>
+            <p className="wa-set__group">Family colors</p>
+            {people.map(Row)}
+            <p className="wa-set__group">Pets</p>
+            {pets.map(Row)}
+            <button className="wa-set__reset" onClick={onReset}>Reset to defaults</button>
 
-            <p className="wa-set__group">Actions</p>
-            <button className="wa-actrow" onClick={()=>store.pull()}><b>Force sync now</b><span>Pull from the backend</span></button>
+            {CONFIGURED && <>
+              <p className="wa-set__group">Family account</p>
+              <div className="wa-set__row"><b>Signed in</b><span style={{marginLeft:"auto",color:"var(--muted)",fontSize:13}}>{store.authEmail||"-"}</span></div>
+              <button className="wa-actrow" onClick={()=>store.pull()}><b>Force sync now</b><span>Pull from the backend</span></button>
+            </>}
+
+            <p className="wa-set__group">App</p>
             <button className="wa-actrow" onClick={()=>onCheckUpdate && onCheckUpdate(true)}><b>Check for updates</b><span>On build {BUILD}</span></button>
             <button className="wa-actrow" onClick={()=>setDiag(true)}><b>Diagnostics</b><span>View the activity log</span></button>
 
-            <p className="wa-set__group">Family colors</p>
-            <p className="wa-hint">The color editor ports with the views in step 2. Family is the only color in the UI.</p>
-
-            <button className="wa-btn wa-btn--danger wa-btn--block" style={{marginTop:18}}
-              onClick={()=>{ FILES.forEach(f=>lsDel("cache:"+f)); ["cfg","dirty"].forEach(lsDel); store.signOut().then(()=>location.reload()); }}>
-              Sign out & clear this device
-            </button>
+            {CONFIGURED &&
+              <button className="wa-btn wa-btn--danger wa-btn--block" style={{marginTop:18}}
+                onClick={()=>{ FILES.forEach(f=>lsDel("cache:"+f)); ["cfg","dirty"].forEach(lsDel); store.signOut().then(()=>location.reload()); }}>
+                Sign out & clear this device
+              </button>}
             <p className="wa-hint" style={{textAlign:"center",marginTop:14,opacity:.7}}>Whereabouts - build {BUILD}</p>
           </>
         )}
@@ -584,7 +1038,6 @@ function Login({ store, toast }){
   const isSignup = mode==="signup";
   async function submit(){
     setErr("");
-    if(!CONFIGURED){ setErr("The backend isn't configured in this build yet."); return; }
     if(!email.trim()||!password){ setErr("Email and password are required."); return; }
     if(isSignup && password.length<6){ setErr("Password must be at least 6 characters."); return; }
     setBusy(true);
@@ -610,7 +1063,6 @@ function Login({ store, toast }){
       <div className="wa-login__eyebrow">{isSignup?"Get started":"Welcome back"}</div>
       <h1 className="wa-login__title">Whereabouts</h1>
       <p className="wa-hint" style={{marginTop:8,fontSize:14}}>The family calendar of where everyone's planned to be. {isSignup?"Create your family account to sync across the wall tablet and phones.":"Sign in to your family account."}</p>
-      {!CONFIGURED && <div className="wa-notice">Backend not configured yet. This build is the shell - sign-in lights up once the Supabase URL, anon key, and API base are filled in.</div>}
       <div className="wa-card" style={{marginTop:18}}>
         <div className="wa-field"><span className="wa-label">Email</span>
           <input className="wa-input" type="email" value={email} autoCapitalize="off" autoCorrect="off"
@@ -635,6 +1087,9 @@ const VIEWS = ["Now","Day","Week","Month","Year"];
 
 function App(){
   const store = useStore();
+  // Family entities: seeded from the prototype roster for now. STEP 3/4 sources
+  // and persists these via the entities collection + meta (colors).
+  const [entities,setEntities]=useState(SEED_ENTITIES);
   const [view,setView]=useState("Now");
   const [cursor,setCursor]=useState(new Date());
   const [tick,setTick]=useState(0);
@@ -645,7 +1100,10 @@ function App(){
 
   useEffect(()=>{ const id=setInterval(()=>setTick(t=>t+1),60000); return ()=>clearInterval(id); },[]);
 
-  // PWA self-update: compare the deployed BUILD stamp to the running one.
+  const setColor = (id, color) => setEntities((arr) => arr.map((e) => (e.id===id ? { ...e, color } : e)));
+  const resetColors = () => setEntities(SEED_ENTITIES);
+
+  // PWA self-update
   const [update,setUpdate]=useState(null);
   const checkUpdate = useCallback(async (announce=false)=>{
     try{
@@ -665,6 +1123,8 @@ function App(){
   },[checkUpdate]);
   function applyUpdate(){ window.location.replace(location.pathname + "?u=" + encodeURIComponent(update||String(Date.now()))); }
 
+  const isLive = sameDay(cursor, new Date()) && Math.abs(cursor.getHours() - new Date().getHours()) === 0;
+
   const label = useMemo(() => {
     if(view==="Year") return `${cursor.getFullYear()}`;
     if(view==="Month") return `${MONTH_NAMES[cursor.getMonth()]} ${cursor.getFullYear()}`;
@@ -672,16 +1132,25 @@ function App(){
       const sow=startOfWeek(cursor), eow=addDays(sow,6);
       const a=`${MONTH_ABBR[sow.getMonth()]} ${sow.getDate()}`;
       const b=sow.getMonth()===eow.getMonth()?`${eow.getDate()}`:`${MONTH_ABBR[eow.getMonth()]} ${eow.getDate()}`;
-      return `${a} - ${b}`;
+      return `${a} – ${b}`;
     }
     return `${DAY_NAMES[cursor.getDay()]}, ${MONTH_ABBR[cursor.getMonth()]} ${cursor.getDate()}`;
   }, [view, cursor, tick]);
 
+  const step = (dir) => {
+    if(view==="Year") setCursor(new Date(cursor.getFullYear()+dir, cursor.getMonth(), 1));
+    else if(view==="Month") setCursor(new Date(cursor.getFullYear(), cursor.getMonth()+dir, 1));
+    else if(view==="Week") setCursor(addDays(cursor, 7*dir));
+    else setCursor(addDays(cursor, dir));
+  };
+  const goToday = () => setCursor(new Date());
+
   if(!store.authReady) return <div className="wa-root"><p className="wa-hint" style={{textAlign:"center",marginTop:90}}>Loading...</p></div>;
-  if(!store.authed) return (
+  // Configured: require the family login. Unconfigured: local preview, no gate.
+  if(CONFIGURED && !store.authed) return (
     <div className="wa-root">
       <Login store={store} toast={toast}/>
-      {toastObj && <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:"var(--ink)",color:"#fff",padding:"9px 16px",borderRadius:999,fontSize:13.5}}>{toastObj}</div>}
+      {toastObj && <div className="wa-toast">{toastObj}</div>}
     </div>
   );
 
@@ -705,22 +1174,38 @@ function App(){
           {VIEWS.map(v => <button key={v} className={"wa-tab"+(v===view?" is-active":"")} onClick={()=>setView(v)}>{v}</button>)}
         </nav>
         <div className="wa-tools">
-          <button className="wa-today" onClick={()=>setCursor(new Date())}>{view==="Now"?"Now":"Today"}</button>
+          {view!=="Now" && (
+            <div className="wa-nav">
+              <button className="wa-iconbtn" onClick={()=>step(-1)} aria-label="Previous">{"‹"}</button>
+              <button className="wa-today" onClick={goToday}>Today</button>
+              <button className="wa-iconbtn" onClick={()=>step(1)} aria-label="Next">{"›"}</button>
+            </div>
+          )}
+          {view==="Now" && <button className="wa-today" onClick={goToday}>Now</button>}
           <button className="wa-iconbtn" onClick={()=>setSettingsOpen(true)} aria-label="Settings">{"⚙"}</button>
         </div>
       </header>
 
       <main className="wa-main">
-        {view==="Now" && <SyncProbe store={store} toast={toast}/>}
-        <ViewSoon name={view}/>
+        {view==="Now" && <>
+          {CONFIGURED && <SyncProbe store={store} toast={toast}/>}
+          <NowBoard entities={entities} cursor={cursor} setCursor={setCursor} isLive={isLive} />
+        </>}
+        {view==="Day" && <DayView entities={entities} cursor={cursor} />}
+        {view==="Week" && <WeekView entities={entities} cursor={cursor} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
+        {view==="Month" && <MonthView entities={entities} cursor={cursor} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
+        {view==="Year" && <YearView entities={entities} cursor={cursor} onPickMonth={(m)=>{ setCursor(new Date(cursor.getFullYear(), m, 1)); setView("Month"); }} />}
       </main>
 
       <footer className="wa-legend">
-        <span className="wa-legend__item">Shell build {BUILD} - views + data entry land in steps 2-3.</span>
+        {entities.map((e) => (
+          <span key={e.id} className="wa-legend__item"><Token entity={e} size={20} /><span>{firstName(e.name)}</span></span>
+        ))}
       </footer>
+      {!CONFIGURED && <p className="wa-previewnote">Local preview - sample family from the prototype. Sign-in + sync light up once the backend is configured.</p>}
 
-      {settingsOpen && <Settings store={store} onClose={()=>setSettingsOpen(false)} onCheckUpdate={checkUpdate}/>}
-      {toastObj && <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:"var(--ink)",color:"#fff",padding:"9px 16px",borderRadius:999,fontSize:13.5,zIndex:60}}>{toastObj}</div>}
+      {settingsOpen && <Settings store={store} entities={entities} onColor={setColor} onReset={resetColors} onClose={()=>setSettingsOpen(false)} onCheckUpdate={checkUpdate}/>}
+      {toastObj && <div className="wa-toast">{toastObj}</div>}
     </div>
   );
 }
