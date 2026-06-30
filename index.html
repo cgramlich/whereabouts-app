@@ -17,10 +17,9 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 /* ============================================================
-   WHEREABOUTS - design system carried from the prototype:
-   quiet slate chrome, white surfaces, and the family is the only
-   saturated color. Fonts: Bricolage Grotesque (display), Inter
-   (body), IBM Plex Mono (numbers/labels).
+   WHEREABOUTS - design system from the prototype: quiet slate
+   chrome, white surfaces, family is the only saturated color.
+   Fonts: Bricolage Grotesque / Inter / IBM Plex Mono.
    ============================================================ */
 .wa-root{
   --canvas:#E7EBF0; --surface:#FFFFFF; --surface-2:#F3F5F9;
@@ -30,8 +29,7 @@
   --body:'Inter', system-ui, sans-serif;
   --mono:'IBM Plex Mono', ui-monospace, monospace;
   font-family:var(--body); color:var(--ink); background:var(--canvas);
-  min-height:100vh; padding:18px; box-sizing:border-box;
-  -webkit-font-smoothing:antialiased;
+  min-height:100vh; padding:18px; box-sizing:border-box; -webkit-font-smoothing:antialiased;
 }
 .wa-root *{ box-sizing:border-box; }
 .wa-mono{ font-family:var(--mono); }
@@ -61,13 +59,14 @@
 .wa-iconbtn{ width:34px; height:34px; border-radius:10px; border:1px solid var(--line);
   background:var(--surface); color:var(--ink); font-size:18px; line-height:1; cursor:pointer; }
 .wa-iconbtn:hover{ background:var(--surface-2); }
+.wa-iconbtn.wa-plus{ background:var(--ink); color:#fff; border-color:var(--ink); font-size:22px; }
 .wa-today{ border:1px solid var(--line); background:var(--surface); color:var(--ink);
   font-family:var(--body); font-weight:600; font-size:13px; padding:8px 12px; border-radius:10px; cursor:pointer; }
 .wa-today:hover{ background:var(--surface-2); }
 
 .wa-main{ margin-top:16px; }
 
-/* Generic card + buttons + inputs (shell chrome) */
+/* Generic card + buttons + inputs */
 .wa-card{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:18px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
 .wa-btn{ font-family:var(--body); font-weight:600; font-size:14px; padding:10px 16px; border-radius:10px; border:1px solid var(--line); background:var(--surface); color:var(--ink); cursor:pointer; }
 .wa-btn:hover{ background:var(--surface-2); }
@@ -76,10 +75,12 @@
 .wa-btn--danger{ color:var(--red); border-color:#f3c5bf; background:#fdf1ef; }
 .wa-btn--block{ width:100%; display:block; }
 .wa-btn:disabled{ opacity:.55; cursor:default; }
-.wa-input{ width:100%; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:12px 13px; color:var(--ink); outline:none; font-size:16px; font-family:var(--body); }
-.wa-input:focus{ border-color:var(--ink); }
+.wa-input, .wa-select{ width:100%; background:var(--surface); border:1px solid var(--line); border-radius:10px; padding:11px 12px; color:var(--ink); outline:none; font-size:16px; font-family:var(--body); }
+.wa-input:focus, .wa-select:focus{ border-color:var(--ink); }
 .wa-label{ display:block; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:6px; font-weight:600; }
 .wa-field{ margin-bottom:14px; }
+.wa-row2{ display:flex; gap:10px; }
+.wa-row2>*{ flex:1; }
 
 /* Sync pill */
 .wa-sync{ display:inline-flex; align-items:center; gap:8px; font-size:12px; padding:7px 12px; border-radius:999px; border:1px solid var(--line); background:var(--surface); color:var(--muted); }
@@ -90,7 +91,7 @@
 .wa-sync.error{ border-color:#f3c5bf; color:var(--red); }
 .wa-sync.error .dot{ background:var(--red); }
 
-/* Data probe (proves the backend round-trip; only when configured) */
+/* Data probe (only when configured) */
 .wa-probe{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:14px 0; }
 .wa-probe__cell{ background:var(--surface-2); border:1px solid var(--line); border-radius:12px; padding:14px; text-align:center; }
 .wa-probe__n{ font-family:var(--display); font-weight:800; font-size:26px; }
@@ -115,7 +116,7 @@
 .wa-place__addr{ display:block; font-size:11px; color:var(--muted); margin-top:1px; }
 .wa-place__count{ font-family:var(--mono); font-size:13px; color:var(--muted); }
 .wa-place__tokens{ display:flex; flex-wrap:wrap; gap:12px 14px; }
-.wa-place__person{ display:flex; flex-direction:column; align-items:center; gap:5px; width:52px; animation:wa-pop .3s ease both; }
+.wa-place__person{ display:flex; flex-direction:column; align-items:center; gap:5px; width:52px; animation:wa-pop .3s ease both; cursor:pointer; }
 .wa-place__pname{ font-size:11px; color:var(--muted); text-align:center; line-height:1.1; }
 .wa-place__sub{ font-size:9px; color:var(--blue); font-family:var(--mono); text-align:center; line-height:1.1; }
 
@@ -132,7 +133,8 @@
 .wa-day__axisPad{ width:96px; flex:none; }
 .wa-day__hours{ position:relative; flex:1; height:22px; }
 .wa-day__hour{ position:absolute; transform:translateX(-50%); font-family:var(--mono); font-size:10px; color:var(--muted); top:6px; }
-.wa-lane{ display:flex; align-items:center; gap:0; height:40px; border-top:1px solid var(--surface-2); }
+.wa-lane{ display:flex; align-items:center; gap:0; height:40px; border-top:1px solid var(--surface-2); cursor:pointer; }
+.wa-lane:hover{ background:var(--surface-2); }
 .wa-lane__who{ width:96px; flex:none; display:flex; align-items:center; gap:8px; }
 .wa-lane__name{ font-size:12px; font-weight:600; }
 .wa-lane__track{ position:relative; flex:1; height:30px; }
@@ -186,18 +188,39 @@
 
 /* Settings drawer */
 .wa-scrim{ position:fixed; inset:0; background:rgba(25,33,43,.32); z-index:40; }
-.wa-drawer{ position:fixed; top:0; right:0; bottom:0; width:340px; max-width:90vw; background:var(--surface); z-index:50; padding:18px; overflow-y:auto; box-shadow:-8px 0 28px rgba(25,33,43,.16); animation:wa-slide .25s ease both; }
+.wa-drawer{ position:fixed; top:0; right:0; bottom:0; width:360px; max-width:92vw; background:var(--surface); z-index:50; padding:18px; overflow-y:auto; box-shadow:-8px 0 28px rgba(25,33,43,.16); animation:wa-slide .25s ease both; }
 .wa-drawer__head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
 .wa-drawer__head h2{ font-family:var(--display); font-weight:700; font-size:18px; margin:0; }
 .wa-x{ border:none; background:none; font-size:24px; line-height:1; cursor:pointer; color:var(--muted); }
-.wa-set__group{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:16px 0 8px; }
+.wa-set__group{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:18px 0 8px; }
 .wa-set__row{ display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid var(--surface-2); font-size:14px; }
 .wa-set__row b{ font-weight:600; }
-.wa-set__name{ flex:1; font-size:14px; font-weight:500; }
+.wa-set__name{ flex:1; font-size:14px; font-weight:500; background:none; border:none; text-align:left; color:var(--ink); font-family:var(--body); cursor:pointer; padding:0; }
+.wa-set__name small{ display:block; color:var(--muted); font-size:11px; font-weight:400; }
 .wa-set__color{ width:38px; height:30px; border:1px solid var(--line); border-radius:8px; background:none; cursor:pointer; padding:2px; }
 .wa-set__reset{ margin-top:14px; width:100%; padding:10px; border:1px solid var(--line); background:var(--surface-2); border-radius:10px; font-weight:600; cursor:pointer; font-family:var(--body); }
 .wa-actrow{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; text-align:left; padding:12px 0; border-bottom:1px solid var(--surface-2); background:none; border:none; cursor:pointer; font-family:var(--body); font-size:14px; color:var(--ink); }
 .wa-actrow span{ font-size:12px; color:var(--muted); }
+.wa-addrow{ width:100%; padding:11px; border:1px dashed var(--line); border-radius:10px; background:none; color:var(--muted); font-family:var(--body); font-weight:600; font-size:13px; cursor:pointer; margin-top:10px; }
+.wa-addrow:hover{ border-color:var(--ink); color:var(--ink); }
+
+/* Placement list rows */
+.wa-prow{ display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:10px; background:var(--surface-2); margin-top:8px; }
+.wa-prow__txt{ flex:1; min-width:0; font-size:13px; }
+.wa-prow__sub{ font-size:11px; color:var(--muted); margin-top:1px; }
+.wa-prow__del{ border:none; background:none; color:var(--muted); cursor:pointer; font-size:18px; flex:none; }
+
+/* Modal sheet (centered, works on tablet + phone) */
+.wa-modalscrim{ position:fixed; inset:0; background:rgba(25,33,43,.42); z-index:55; display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; overflow-y:auto; }
+.wa-sheet{ background:var(--surface); border:1px solid var(--line); border-radius:18px; width:100%; max-width:460px; padding:18px; box-shadow:0 24px 60px rgba(25,33,43,.28); animation:wa-rise .2s ease both; margin:auto; }
+.wa-sheet__head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+.wa-sheet__head h2{ font-family:var(--display); font-weight:700; font-size:19px; margin:0; }
+.wa-seg{ display:flex; gap:4px; background:var(--surface-2); padding:4px; border-radius:10px; margin-bottom:14px; }
+.wa-seg__b{ flex:1; border:none; background:transparent; color:var(--muted); font-family:var(--body); font-weight:600; font-size:13px; padding:8px; border-radius:7px; cursor:pointer; }
+.wa-seg__b.is-on{ background:var(--ink); color:#fff; }
+.wa-checks{ display:flex; flex-wrap:wrap; gap:8px; }
+.wa-checkpill{ display:inline-flex; align-items:center; gap:6px; padding:6px 11px; border-radius:999px; border:1px solid var(--line); background:var(--surface); font-size:13px; cursor:pointer; }
+.wa-checkpill.is-on{ border-color:var(--ink); background:var(--ink); color:#fff; }
 
 /* Update banner */
 .wa-update{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; background:var(--ink); color:#fff; border:none; text-align:left; padding:12px 16px; font-size:13.5px; font-weight:600; border-radius:12px; margin-bottom:14px; cursor:pointer; }
@@ -213,10 +236,9 @@
 .wa-login{ max-width:420px; margin:0 auto; padding-top:8vh; }
 .wa-login__eyebrow{ font-size:11px; letter-spacing:.2em; text-transform:uppercase; color:var(--muted); font-weight:600; }
 .wa-login__title{ font-family:var(--display); font-weight:800; font-size:32px; margin:4px 0 0; letter-spacing:-.02em; }
-.wa-notice{ background:#fdf6e3; border:1px solid #e7d8a8; color:#7a5a00; border-radius:10px; padding:10px 12px; font-size:13px; margin-top:14px; }
 
 /* Toast */
-.wa-toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:9px 16px; border-radius:999px; font-size:13.5px; z-index:60; box-shadow:0 8px 24px rgba(25,33,43,.3); }
+.wa-toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:9px 16px; border-radius:999px; font-size:13.5px; z-index:70; box-shadow:0 8px 24px rgba(25,33,43,.3); }
 
 @keyframes wa-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
 @keyframes wa-slide{ from{ transform:translateX(20px); opacity:.6; } to{ transform:none; opacity:1; } }
@@ -238,12 +260,10 @@
 <script type="text/babel" data-presets="react">
 const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
-/* ============================================================
-   LOGGING - module-level ring buffer, ASCII-only bracketed tags.
-   ============================================================ */
+/* ============================================================ LOGGING ============================================================ */
 const LOG_CAP = 600;
 const LOG = [];
-const BUILD = "2026-06-29.2";
+const BUILD = "2026-06-29.3";
 function log(tag, msg){
   const line = { t: new Date().toISOString().slice(11,19), tag, msg: String(msg) };
   LOG.push(line);
@@ -252,9 +272,7 @@ function log(tag, msg){
 }
 log("INIT", "script booting - build " + BUILD);
 
-/* ============================================================
-   SMALL UTILITIES
-   ============================================================ */
+/* ============================================================ UTILITIES ============================================================ */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
 const nowISO = () => new Date().toISOString();
 
@@ -264,29 +282,30 @@ const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct",
 const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 function startOfWeek(d){ const x=new Date(d); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x; }
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
+const ymd = (d) => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+function parseYmd(s){ const a=(s||"").split("-").map(Number); return new Date(a[0], (a[1]||1)-1, a[2]||1); }
+function fmtYmd(s){ const d=parseYmd(s); return `${MONTH_ABBR[d.getMonth()]} ${d.getDate()}`; }
 
-/* ---- Color utilities ---- */
+/* Color utilities */
 function hexToRgb(hex){
-  const h = hex.replace("#",""); const v = h.length===3 ? h.split("").map(c=>c+c).join("") : h;
+  const h = (hex||"#000").replace("#",""); const v = h.length===3 ? h.split("").map(c=>c+c).join("") : h;
   return { r:parseInt(v.slice(0,2),16), g:parseInt(v.slice(2,4),16), b:parseInt(v.slice(4,6),16) };
 }
 function rgba(hex, a){ const { r,g,b } = hexToRgb(hex); return `rgba(${r}, ${g}, ${b}, ${a})`; }
-function readableText(hex){
-  const { r,g,b } = hexToRgb(hex);
-  const lum = (0.299*r + 0.587*g + 0.114*b)/255;
-  return lum > 0.62 ? "#19212B" : "#FFFFFF";
-}
-function firstName(name){
-  const p = (name||"").split(" "); const last = p[p.length-1];
-  return /^(jr|sr|ii|iii)\.?$/i.test(last) && p.length>1 ? `${p[0]} ${last}` : p[0];
-}
+function readableText(hex){ const { r,g,b } = hexToRgb(hex); const lum = (0.299*r + 0.587*g + 0.114*b)/255; return lum > 0.62 ? "#19212B" : "#FFFFFF"; }
+function firstName(name){ const p=(name||"").split(" "); const last=p[p.length-1]; return /^(jr|sr|ii|iii)\.?$/i.test(last) && p.length>1 ? `${p[0]} ${last}` : p[0]; }
 
 /* ============================================================
-   FAMILY + PLACES (seed data). Colors are defaults; editable in
-   Settings. STEP 3/4 will source these from the entities/places
-   collections instead of these constants.
+   SEED DATA - the family + places. On a brand-new account (or local
+   preview) these populate the entities/places collections once; after
+   that everything is edited in the app and lives in the store.
    ============================================================ */
-const SEED_ENTITIES = [
+const HOME_OF = {
+  chris:"sanantonio", kristin:"sanantonio", jenna:"austin", hank:"sanantonio", cjr:"dallas",
+  molly:"sanantonio", samuel:"sanantonio", bellarose:"sanantonio", gracieann:"sanantonio", sophia:"sanantonio",
+  gus:"sanantonio", graham:"sanantonio", lola:"sanantonio",
+};
+const SEED_ROSTER = [
   { id:"chris",     name:"Pops",      short:"Po", kind:"person", color:"#1E40AF" },
   { id:"kristin",   name:"Kristin",   short:"Kr", kind:"person", color:"#DB2777" },
   { id:"jenna",     name:"Jenna",     short:"Je", kind:"person", color:"#0D9488" },
@@ -301,98 +320,51 @@ const SEED_ENTITIES = [
   { id:"graham",    name:"Graham",    short:"Gh", kind:"pet",    color:"#7C4A2D" },
   { id:"lola",      name:"Lola",      short:"Lo", kind:"pet",    color:"#FFFFFF" },
 ];
+const SEED_ENTITIES = SEED_ROSTER.map((e, i) => ({ ...e, home: HOME_OF[e.id] || "sanantonio", order: i }));
 
-const PLACES = {
-  sanantonio:  { id:"sanantonio",  name:"San Antonio", full:"Spring Branch · San Antonio area", kind:"metro" },
-  dallas:      { id:"dallas",      name:"Dallas",      full:"Dallas, TX (house & apartments)",       kind:"metro" },
-  austin:      { id:"austin",      name:"Austin",      full:"Austin · Buda, TX",                kind:"metro" },
-  boston:      { id:"boston",      name:"Boston",      full:"Boston, MA · school & summer work", kind:"metro" },
-  dads:        { id:"dads",        name:"Dad's",       full:"Sophia's dad's house",                  kind:"custody" },
-  office:      { id:"office",      name:"Office",      full:"At the office",                         kind:"work" },
-  auburn:      { id:"auburn",      name:"Auburn",      full:"Auburn, AL · school",               kind:"school" },
-  jordanvalley:{ id:"jordanvalley",name:"Boarding",    full:"Jordan Valley Retrievers (kennel)",     kind:"boarding" },
-};
-const PLACE_ORDER = ["sanantonio","dallas","austin","boston","dads","office","auburn","jordanvalley"];
-
-const HOME_OF = {
-  chris:"sanantonio", kristin:"sanantonio", jenna:"austin", hank:"sanantonio", cjr:"dallas",
-  molly:"sanantonio", samuel:"sanantonio", bellarose:"sanantonio", gracieann:"sanantonio", sophia:"sanantonio",
-  gus:"sanantonio", graham:"sanantonio", lola:"sanantonio",
-};
+const SEED_PLACE_LIST = [
+  { id:"sanantonio",  name:"San Antonio", full:"Spring Branch · San Antonio area", kind:"metro" },
+  { id:"dallas",      name:"Dallas",      full:"Dallas, TX (house & apartments)",       kind:"metro" },
+  { id:"austin",      name:"Austin",      full:"Austin · Buda, TX",                kind:"metro" },
+  { id:"boston",      name:"Boston",      full:"Boston, MA · school & summer work", kind:"metro" },
+  { id:"dads",        name:"Dad's",       full:"Sophia's dad's house",                  kind:"custody" },
+  { id:"office",      name:"Office",      full:"At the office",                         kind:"work" },
+  { id:"auburn",      name:"Auburn",      full:"Auburn, AL · school",               kind:"school" },
+  { id:"jordanvalley",name:"Boarding",    full:"Jordan Valley Retrievers (kennel)",     kind:"boarding" },
+];
+const SEED_PLACES = SEED_PLACE_LIST.map((p, i) => ({ ...p, order: i }));
+const PLACE_KINDS = ["metro","work","custody","school","boarding","other"];
+const DEFAULT_COLOR = { chris:"#1E40AF", kristin:"#DB2777", jenna:"#0D9488", cjr:"#EA580C", samuel:"#6D28D9",
+  hank:"#DC2626", molly:"#D97706", bellarose:"#F472B6", gracieann:"#0EA5E9", sophia:"#16A34A",
+  gus:"#18181B", graham:"#7C4A2D", lola:"#FFFFFF" };
 
 /* ============================================================
-   PLACEMENT RESOLVER (ported from the prototype). Precedence,
-   most-specific first: journey > pin > trip > custody > rule.
-   STEP 4 repoints the PINS/TRIPS/JOURNEYS/CUSTODY sources to read
-   the `placements` collection in the store; the precedence stays.
+   PLACEMENT RESOLVER. Precedence (most specific first):
+   journey > pin > trip > custody > recurring rule.
+   journey/pin/trip come from the store's `placements` collection;
+   custody + the per-person rule are code-level defaults for now
+   (slice 3b turns them into editable schedules).
    ============================================================ */
 function ymdNum(date){ return date.getFullYear()*10000 + (date.getMonth()+1)*100 + date.getDate(); }
 function strToYmd(s){ const a=s.split("-").map(Number); return a[0]*10000 + a[1]*100 + a[2]; }
-
-const TRIPS = [];
-function tripPlace(entityId, date){
-  const key = ymdNum(date);
-  for(const t of TRIPS){ if(t.id!==entityId) continue; if(key>=strToYmd(t.start) && key<=strToYmd(t.end)) return t.place; }
-  return null;
-}
-
-const PINS = [
-  { id:"cjr", place:"dallas", date:"2026-06-09" },
-  { id:"jenna", place:"dallas", date:"2026-06-09" },
-  { id:"molly", place:"dallas", date:"2026-06-09" },
-  { id:"samuel", place:"dallas", date:"2026-06-09" },
-  { id:"graham", place:"dallas", date:"2026-06-09" },
-  { id:"gus", place:"dallas", date:"2026-06-09" },
-  { id:"hank", place:"boston", date:"2026-06-09" },
-  { id:"kristin", place:"sanantonio", date:"2026-06-09" },
-  { id:"bellarose", place:"sanantonio", date:"2026-06-09" },
-  { id:"gracieann", place:"sanantonio", date:"2026-06-09" },
-  { id:"sophia", place:"sanantonio", date:"2026-06-09" },
-  { id:"lola", place:"sanantonio", date:"2026-06-09" },
-];
-function pinPlace(entityId, date){
-  const key = ymdNum(date);
-  for(const p of PINS) if(p.id===entityId && strToYmd(p.date)===key) return p.place;
-  return null;
-}
-
-const CUSTODY = { kids:new Set(["sophia"]), place:"dads" };
-function custodyPlace(entityId, date){
-  if(!CUSTODY.kids.has(entityId)) return null;
-  const day = date.getDay();
-  if(day!==0 && day!==6) return null;
-  const start = new Date(date.getFullYear(), 0, 1);
-  const week = Math.floor((date - start) / (7*86400000));
-  return week % 2 === 0 ? CUSTODY.place : null;
-}
-
-const JOURNEYS = [
-  { id:"chris", from:"sanantonio", to:"dallas", date:"2026-06-09" },
-];
-function journeyOf(entityId, date){
-  const key = ymdNum(date);
-  for(const j of JOURNEYS) if(j.id===entityId && strToYmd(j.date)===key) return j;
-  return null;
-}
-
 const isSummer = (d) => { const m=d.getMonth(); return m>=5 && m<=7; };
 const isTerm = (d) => !isSummer(d);
 function gusBoarding(date){ const dom=date.getDate(), day=date.getDay(); return (day===0||day===6) && dom>=8 && dom<=14; }
 
-function placementAt(entityId, date){
+// Default custody sketch (Sophia, alternating weekends -> dad's). Editable in 3b.
+function custodyPlace(entityId, date){
+  if(entityId !== "sophia") return null;
+  const day = date.getDay();
+  if(day!==0 && day!==6) return null;
+  const start = new Date(date.getFullYear(), 0, 1);
+  const week = Math.floor((date - start) / (7*86400000));
+  return week % 2 === 0 ? "dads" : null;
+}
+// Recurring per-person default. Editable in 3b.
+function rulePlace(entityId, date){
   const day = date.getDay();
   const h = date.getHours();
   const weekday = day>=1 && day<=5;
-
-  const jr = journeyOf(entityId, date);
-  if(jr) return h < 14 ? jr.from : jr.to;
-  const pin = pinPlace(entityId, date);
-  if(pin) return pin;
-  const trip = tripPlace(entityId, date);
-  if(trip) return trip;
-  const cust = custodyPlace(entityId, date);
-  if(cust) return cust;
-
   switch(entityId){
     case "chris":   if(!weekday) return "sanantonio"; return h>=8 && h<18 ? "office" : "dallas";
     case "kristin": return "sanantonio";
@@ -410,61 +382,86 @@ function placementAt(entityId, date){
     case "gus":     return gusBoarding(date) ? "jordanvalley" : "sanantonio";
     case "graham":  return "sanantonio";
     case "lola":    return "sanantonio";
-    default:        return "sanantonio";
+    default:        return HOME_OF[entityId] || "sanantonio";
   }
 }
 
-function dayPlacement(entityId, date){
-  const counts = {};
-  for(let h=8; h<=18; h++){
-    const probe = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h);
-    const loc = placementAt(entityId, probe);
-    counts[loc] = (counts[loc]||0) + 1;
+// Build a resolver bound to the current placements + home-base map.
+function makeResolver(placements, homeOf){
+  const list = placements || [];
+  function journeyOf(entityId, date){
+    const key = ymdNum(date);
+    for(const j of list) if(j.type==="journey" && j.entityId===entityId && strToYmd(j.date)===key) return j;
+    return null;
   }
-  const home = HOME_OF[entityId];
-  let best = placementAt(entityId, new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12));
-  let bestN = -1;
-  for(const [loc,n] of Object.entries(counts)){
-    const weight = loc===home ? n*0.5 : n;
-    if(weight > bestN){ bestN = weight; best = loc; }
+  function pinPlace(entityId, date){
+    const key = ymdNum(date);
+    for(const p of list) if(p.type==="pin" && p.entityId===entityId && strToYmd(p.date)===key) return p.place;
+    return null;
   }
-  return best;
+  function tripPlace(entityId, date){
+    const key = ymdNum(date);
+    for(const t of list){
+      if(t.type!=="trip") continue;
+      const ids = t.entityIds || (t.entityId ? [t.entityId] : []);
+      if(!ids.includes(entityId)) continue;
+      if(key>=strToYmd(t.start) && key<=strToYmd(t.end)) return t.place;
+    }
+    return null;
+  }
+  function anyTrip(date){
+    const key = ymdNum(date);
+    return list.some(t => t.type==="trip" && key>=strToYmd(t.start) && key<=strToYmd(t.end));
+  }
+  function placementAt(entityId, date){
+    const h = date.getHours();
+    const jr = journeyOf(entityId, date); if(jr) return h < 14 ? jr.from : jr.to;
+    const pin = pinPlace(entityId, date); if(pin) return pin;
+    const trip = tripPlace(entityId, date); if(trip) return trip;
+    const cust = custodyPlace(entityId, date); if(cust) return cust;
+    return rulePlace(entityId, date);
+  }
+  function dayPlacement(entityId, date){
+    const counts = {};
+    for(let h=8; h<=18; h++){
+      const probe = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h);
+      const loc = placementAt(entityId, probe);
+      counts[loc] = (counts[loc]||0) + 1;
+    }
+    const home = homeOf[entityId];
+    let best = placementAt(entityId, new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12));
+    let bestN = -1;
+    for(const [loc,n] of Object.entries(counts)){
+      const weight = loc===home ? n*0.5 : n;
+      if(weight > bestN){ bestN = weight; best = loc; }
+    }
+    return best;
+  }
+  return { journeyOf, placementAt, dayPlacement, anyTrip };
 }
 
-/* ============================================================
-   LOCAL STORAGE LAYER (namespaced "whereabouts:")
-   ============================================================ */
+/* ============================================================ LOCAL STORAGE ============================================================ */
 const NS = "whereabouts:";
 const lsGet = (k, fb) => { try { const v = localStorage.getItem(NS+k); return v===null ? fb : JSON.parse(v); } catch(e){ log("ERROR","lsGet "+k+": "+e.message); return fb; } };
 const lsSet = (k, v) => { try { localStorage.setItem(NS+k, JSON.stringify(v)); } catch(e){ log("ERROR","lsSet "+k+": "+e.message); } };
 const lsDel = (k) => { try { localStorage.removeItem(NS+k); } catch(e){} };
-
 const FILES = ["entities","places","placements"];
 
-/* ============================================================
-   BACKEND + AUTH CONFIG
-   PUBLIC-SAFE values. Fill these once the Whereabouts Supabase
-   project + Railway service exist. Until then CONFIGURED is false
-   and the app runs as a LOCAL PREVIEW (no login, seed family).
-   ============================================================ */
+/* ============================================================ BACKEND + AUTH CONFIG ============================================================ */
 const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";        // TODO: Whereabouts Supabase project URL
 const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";             // TODO: Whereabouts anon (public) key
 const API_BASE = "https://YOUR-RAILWAY-APP.up.railway.app";     // TODO: whereabouts-backend Railway URL
-
 const CONFIGURED = !SUPABASE_URL.includes("YOUR-") && !SUPABASE_ANON_KEY.includes("YOUR_") && !API_BASE.includes("YOUR-");
 
 const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage, storageKey: "whereabouts-auth" }
 });
-
 async function authToken(){
   try{ const { data } = await supa.auth.getSession(); return data.session ? data.session.access_token : null; }
   catch(e){ log("ERROR","authToken: "+e.message); return null; }
 }
 
-/* ============================================================
-   BACKEND COLLECTIONS API
-   ============================================================ */
+/* ============================================================ COLLECTIONS API ============================================================ */
 async function collGet(file){
   const token = await authToken();
   if(!token) throw new Error("Not signed in");
@@ -494,9 +491,7 @@ async function collPut(file, data){
   return true;
 }
 
-/* ============================================================
-   DATA STORE HOOK
-   ============================================================ */
+/* ============================================================ DATA STORE HOOK ============================================================ */
 function useStore(){
   const [cfg, setCfg] = useState(() => lsGet("cfg", { appName:"Whereabouts" }));
   const [data, setData] = useState(() => { const d={}; FILES.forEach(f => d[f]=lsGet("cache:"+f, [])); return d; });
@@ -507,13 +502,11 @@ function useStore(){
   const [authed, setAuthed] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [authReady, setAuthReady] = useState(false);
-  const cfgRef = useRef(cfg); cfgRef.current = cfg;
   const dirtyRef = useRef(dirty); dirtyRef.current = dirty;
   const dataRef = useRef(data); dataRef.current = data;
   const authedRef = useRef(false);
 
   const saveCfg = useCallback((next) => { setCfg(next); lsSet("cfg", next); }, []);
-
   const markDirty = useCallback((file, rows) => {
     lsSet("cache:"+file, rows);
     const nd = { ...dirtyRef.current, [file]:true }; setDirty(nd); lsSet("dirty", nd);
@@ -525,21 +518,18 @@ function useStore(){
     const pending = FILES.filter(f => dirtyRef.current[f]);
     if(pending.length===0){ setSync("idle"); return; }
     setSync("busy"); setSyncMsg("Saving...");
-    log("SYNC","push "+pending.join(","));
     try{
       for(const f of pending){
         await collPut(f, dataRef.current[f]);
         const nd = { ...dirtyRef.current, [f]:false }; dirtyRef.current = nd; setDirty(nd); lsSet("dirty", nd);
       }
-      setSync("idle"); setSyncMsg("");
-      log("SYNC","push complete");
+      setSync("idle"); setSyncMsg(""); log("SYNC","push complete");
     }catch(e){ setSync("error"); setSyncMsg(e.message||"Sync failed"); log("ERROR","pushDirty: "+e.message); }
   }, []);
 
   const pull = useCallback(async () => {
     if(!authedRef.current || !navigator.onLine) return;
     setSync("busy"); setSyncMsg("Syncing...");
-    log("SYNC","pull all");
     try{
       const nextData = { ...dataRef.current };
       for(const f of FILES){
@@ -555,8 +545,7 @@ function useStore(){
   }, [pushDirty]);
 
   const applySession = useCallback((session) => {
-    const ok = !!session;
-    const was = authedRef.current;
+    const ok = !!session; const was = authedRef.current;
     authedRef.current = ok; setAuthed(ok);
     setAuthEmail(ok && session.user ? (session.user.email||"") : "");
     if(ok && !was){ log("AUTH","session active"); pull(); }
@@ -568,23 +557,17 @@ function useStore(){
     if(error){ log("AUTH","sign-in failed: "+error.message); throw new Error(error.message); }
     log("AUTH","sign-in ok");
   }, []);
-
-  const signOut = useCallback(async () => {
-    try{ await supa.auth.signOut(); }catch(e){ log("ERROR","signOut: "+e.message); }
-    log("AUTH","signed out");
-  }, []);
-
+  const signOut = useCallback(async () => { try{ await supa.auth.signOut(); }catch(e){ log("ERROR","signOut: "+e.message); } log("AUTH","signed out"); }, []);
   const signUp = useCallback(async (email, password) => {
     const redirectTo = window.location.origin + window.location.pathname;
     const { data, error } = await supa.auth.signUp({ email:(email||"").trim(), password:password||"", options:{ emailRedirectTo: redirectTo } });
     if(error){ log("AUTH","sign-up failed: "+error.message); throw new Error(error.message); }
-    const needsConfirm = !data.session;
-    log("AUTH","sign-up ok needsConfirm="+needsConfirm);
+    const needsConfirm = !data.session; log("AUTH","sign-up ok needsConfirm="+needsConfirm);
     return { needsConfirm };
   }, []);
 
   useEffect(() => {
-    if(!CONFIGURED){ setAuthReady(true); return; }   // local preview: no auth subscription
+    if(!CONFIGURED){ setAuthReady(true); return; }
     let sub = null;
     (async () => {
       try{ const { data } = await supa.auth.getSession(); applySession(data.session); }
@@ -618,9 +601,19 @@ function useStore(){
     if(i>=0){ next = list.slice(); next[i] = merged; } else { next = [merged, ...list]; }
     const nd = { ...dataRef.current, [file]:next }; dataRef.current = nd; setData(nd);
     markDirty(file, next);
-    log("SAVE", file+" upsert "+(row.name||row.id||"").slice(0,40));
+    log("SAVE", file+" upsert "+(row.name||row.id||row.type||"").toString().slice(0,40));
     pushDirty();
     return merged;
+  }, [markDirty, pushDirty]);
+
+  // Insert several rows in one write (used by first-run seeding).
+  const seedMany = useCallback((file, rows) => {
+    const existing = dataRef.current[file] || [];
+    const next = [...existing, ...rows.map(r => ({ ...r, createdAt:nowISO(), updatedAt:nowISO() }))];
+    const nd = { ...dataRef.current, [file]:next }; dataRef.current = nd; setData(nd);
+    markDirty(file, next);
+    log("SEED", file+" seeded "+rows.length+" rows");
+    pushDirty();
   }, [markDirty, pushDirty]);
 
   const remove = useCallback((file, id) => {
@@ -631,20 +624,19 @@ function useStore(){
   }, [markDirty, pushDirty]);
 
   return { cfg, saveCfg, data, sync, syncMsg, online, dirty, authed, authEmail, authReady,
-           signIn, signUp, signOut, pull, pushDirty, upsert, remove, setSync };
+           signIn, signUp, signOut, pull, pushDirty, upsert, seedMany, remove, setSync };
 }
 
-/* ============================================================
-   TOKENS
-   ============================================================ */
-function Token({ entity, size=34, title }){
+/* ============================================================ TOKENS ============================================================ */
+function Token({ entity, size=34, title, onClick }){
   const txt = readableText(entity.color);
   const isPet = entity.kind === "pet";
-  const needsBorder = entity.color.toUpperCase() === "#FFFFFF";
+  const needsBorder = (entity.color||"").toUpperCase() === "#FFFFFF";
   return (
-    <div className={"wa-token"+(isPet?" wa-token--pet":"")} title={title||entity.name}
+    <div className={"wa-token"+(isPet?" wa-token--pet":"")} title={title||entity.name} onClick={onClick}
       style={{ width:size, height:size, background:entity.color, color:txt,
-        borderRadius:isPet?size*0.32:"50%", border:needsBorder?"1.5px solid #C7CDD6":"none", fontSize:size*0.34 }}>
+        borderRadius:isPet?size*0.32:"50%", border:needsBorder?"1.5px solid #C7CDD6":"none", fontSize:size*0.34,
+        cursor:onClick?"pointer":"default" }}>
       {entity.short}
       {isPet && (
         <svg className="wa-paw" viewBox="0 0 24 24" width={size*0.36} height={size*0.36} style={{ fill:txt }} aria-hidden="true">
@@ -657,7 +649,7 @@ function Token({ entity, size=34, title }){
 }
 function HalfToken({ entity, size=38, title }){
   const txt = readableText(entity.color);
-  const needsBorder = entity.color.toUpperCase() === "#FFFFFF";
+  const needsBorder = (entity.color||"").toUpperCase() === "#FFFFFF";
   return (
     <div className="wa-token wa-token--half" title={title||entity.name}
       style={{ width:size, height:size, borderRadius:"50%",
@@ -669,26 +661,24 @@ function HalfToken({ entity, size=38, title }){
   );
 }
 
-/* ============================================================
-   NOW BOARD (hero)
-   ============================================================ */
-function NowBoard({ entities, cursor, setCursor, isLive }){
+/* ============================================================ NOW BOARD ============================================================ */
+function NowBoard({ entities, cursor, setCursor, isLive, ctx }){
   const groups = useMemo(() => {
     const g = {};
     entities.forEach((e) => {
-      const jr = journeyOf(e.id, cursor);
+      const jr = ctx.journeyOf(e.id, cursor);
       if(jr){
         (g[jr.from] = g[jr.from] || []).push({ e, half:"from", other:jr.to });
         (g[jr.to] = g[jr.to] || []).push({ e, half:"to", other:jr.from });
       } else {
-        const loc = placementAt(e.id, cursor);
+        const loc = ctx.placementAt(e.id, cursor);
         (g[loc] = g[loc] || []).push({ e, half:null });
       }
     });
     return g;
-  }, [entities, cursor]);
+  }, [entities, cursor, ctx]);
 
-  const occupied = PLACE_ORDER.filter((l) => groups[l] && groups[l].length);
+  const occupied = ctx.placeOrder.filter((l) => groups[l] && groups[l].length);
   const hour = cursor.getHours();
   const setHour = (h) => { const x=new Date(cursor); x.setHours(h,0,0,0); setCursor(x); };
   const ampm = (h) => `${((h+11)%12)+1} ${h<12?"AM":"PM"}`;
@@ -700,34 +690,29 @@ function NowBoard({ entities, cursor, setCursor, isLive }){
           <span className="wa-mono">{ampm(hour)}</span>
           {isLive ? <span className="wa-livedot">live</span> : <span className="wa-scrub__hint">scrubbing</span>}
         </div>
-        <input className="wa-range" type="range" min="0" max="23" value={hour}
-          onChange={(e)=>setHour(Number(e.target.value))} aria-label="Time of day" />
+        <input className="wa-range" type="range" min="0" max="23" value={hour} onChange={(e)=>setHour(Number(e.target.value))} aria-label="Time of day" />
         <div className="wa-scrub__ticks"><span>6 AM</span><span>Noon</span><span>6 PM</span><span>Midnight</span></div>
       </div>
-
       <div className="wa-board">
         {occupied.map((locId) => {
-          const loc = PLACES[locId];
+          const loc = ctx.placeOf(locId);
           const here = groups[locId];
           const isMetro = loc.kind === "metro";
           return (
             <section key={locId} className={"wa-place"+(isMetro?" wa-place--home":"")}>
               <header className="wa-place__head">
-                <div>
-                  <h3 className="wa-place__name">{loc.name}</h3>
-                  <span className="wa-place__addr">{loc.full}</span>
-                </div>
+                <div><h3 className="wa-place__name">{loc.name}</h3><span className="wa-place__addr">{loc.full}</span></div>
                 <span className="wa-place__count">{here.length}</span>
               </header>
               <div className="wa-place__tokens">
                 {here.map(({ e, half, other }) => (
-                  <div key={e.id} className="wa-place__person">
+                  <div key={e.id} className="wa-place__person" onClick={()=>ctx.onPick(e.id, cursor)}>
                     {half
-                      ? <HalfToken entity={e} size={38} title={`${e.name}: ${PLACES[half==="from"?locId:other].name} → ${PLACES[half==="from"?other:locId].name}`} />
+                      ? <HalfToken entity={e} size={38} title={`${e.name}: ${ctx.placeOf(half==="from"?locId:other).name} → ${ctx.placeOf(half==="from"?other:locId).name}`} />
                       : <Token entity={e} size={38} />}
                     <span className="wa-place__pname">{firstName(e.name)}</span>
-                    {half==="from" && <span className="wa-place__sub">{"→ " + PLACES[other].name}</span>}
-                    {half==="to" && <span className="wa-place__sub">{PLACES[other].name + " →"}</span>}
+                    {half==="from" && <span className="wa-place__sub">{"→ " + ctx.placeOf(other).name}</span>}
+                    {half==="to" && <span className="wa-place__sub">{ctx.placeOf(other).name + " →"}</span>}
                   </div>
                 ))}
               </div>
@@ -739,27 +724,22 @@ function NowBoard({ entities, cursor, setCursor, isLive }){
   );
 }
 
-/* ============================================================
-   DAY VIEW (swimlanes)
-   ============================================================ */
-function DayView({ entities, cursor }){
-  const START=6, END=22;
-  const span = END-START;
+/* ============================================================ DAY VIEW ============================================================ */
+function DayView({ entities, cursor, ctx }){
+  const START=6, END=22; const span = END-START;
   const today = sameDay(cursor, new Date());
   const nowFrac = today ? (new Date().getHours() + new Date().getMinutes()/60 - START)/span : null;
-
   const lanes = entities.map((e) => {
     const segs = [];
     for(let h=START; h<END; h++){
       const probe = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), h);
-      const loc = placementAt(e.id, probe);
+      const loc = ctx.placementAt(e.id, probe);
       const last = segs[segs.length-1];
       if(last && last.loc===loc) last.e = h+1;
       else segs.push({ loc, s:h, e:h+1 });
     }
     return { entity:e, segs };
   });
-
   return (
     <div className="wa-day">
       <div className="wa-day__axis">
@@ -772,21 +752,18 @@ function DayView({ entities, cursor }){
       </div>
       <div className="wa-day__grid">
         {lanes.map(({ entity, segs }) => (
-          <div key={entity.id} className="wa-lane">
-            <div className="wa-lane__who">
-              <Token entity={entity} size={28} />
-              <span className="wa-lane__name">{firstName(entity.name)}</span>
-            </div>
+          <div key={entity.id} className="wa-lane" onClick={()=>ctx.onPick(entity.id, cursor)} title={"Set where "+firstName(entity.name)+" is"}>
+            <div className="wa-lane__who"><Token entity={entity} size={28} /><span className="wa-lane__name">{firstName(entity.name)}</span></div>
             <div className="wa-lane__track">
               {nowFrac!=null && nowFrac>=0 && nowFrac<=1 && <div className="wa-nowline" style={{ left:`${nowFrac*100}%` }} />}
               {segs.map((seg, i) => {
-                const isHome = seg.loc === HOME_OF[entity.id];
+                const isHome = seg.loc === ctx.homeOf[entity.id];
                 return (
                   <div key={i} className={"wa-seg"+(isHome?" wa-seg--home":"")}
                     style={{ left:`${((seg.s-START)/span)*100}%`, width:`${((seg.e-seg.s)/span)*100}%`,
                       background:isHome?"transparent":rgba(entity.color,0.16),
                       borderLeft:isHome?"none":`3px solid ${entity.color}`, color:isHome?"var(--muted)":"var(--ink)" }}>
-                    <span className="wa-seg__label">{PLACES[seg.loc].name}</span>
+                    <span className="wa-seg__label">{ctx.placeOf(seg.loc).name}</span>
                   </div>
                 );
               })}
@@ -794,14 +771,13 @@ function DayView({ entities, cursor }){
           </div>
         ))}
       </div>
+      <p className="wa-hint" style={{margin:"10px 4px 0"}}>Tap a person's row to set where they are on this day.</p>
     </div>
   );
 }
 
-/* ============================================================
-   WEEK VIEW (matrix)
-   ============================================================ */
-function WeekView({ entities, cursor, onPickDay }){
+/* ============================================================ WEEK VIEW ============================================================ */
+function WeekView({ entities, cursor, ctx, onPickDay }){
   const sow = startOfWeek(cursor);
   const days = Array.from({ length:7 }).map((_, i) => addDays(sow, i));
   const today = new Date();
@@ -814,8 +790,7 @@ function WeekView({ entities, cursor, onPickDay }){
               <th className="wa-matrix__corner">Who</th>
               {days.map((d) => (
                 <th key={d.toISOString()} className={"wa-matrix__day"+(sameDay(d,today)?" is-today":"")} onClick={()=>onPickDay(d)}>
-                  <span className="wa-matrix__dn">{DAY_NAMES[d.getDay()]}</span>
-                  <span className="wa-matrix__dd">{d.getDate()}</span>
+                  <span className="wa-matrix__dn">{DAY_NAMES[d.getDay()]}</span><span className="wa-matrix__dd">{d.getDate()}</span>
                 </th>
               ))}
             </tr>
@@ -825,22 +800,22 @@ function WeekView({ entities, cursor, onPickDay }){
               <tr key={e.id}>
                 <th className="wa-matrix__who" scope="row"><Token entity={e} size={24} /><span>{firstName(e.name)}</span></th>
                 {days.map((d) => {
-                  const jr = journeyOf(e.id, d);
+                  const jr = ctx.journeyOf(e.id, d);
                   if(jr){
                     return (
                       <td key={d.toISOString()} className="wa-cell wa-cell--journey"
                         style={{ background:`linear-gradient(135deg, ${rgba(e.color,0.26)} 0 50%, ${rgba(e.color,0.10)} 50% 100%)`, boxShadow:`inset 3px 0 0 ${e.color}` }}
-                        onClick={()=>onPickDay(d)} title={`${PLACES[jr.from].name} → ${PLACES[jr.to].name}`}>
-                        {PLACES[jr.from].name}<span className="wa-cell__arr"> {"→"} </span>{PLACES[jr.to].name}
+                        onClick={()=>onPickDay(d)} title={`${ctx.placeOf(jr.from).name} → ${ctx.placeOf(jr.to).name}`}>
+                        {ctx.placeOf(jr.from).name}<span className="wa-cell__arr"> {"→"} </span>{ctx.placeOf(jr.to).name}
                       </td>
                     );
                   }
-                  const loc = dayPlacement(e.id, d);
-                  const isHome = loc === HOME_OF[e.id];
+                  const loc = ctx.dayPlacement(e.id, d);
+                  const isHome = loc === ctx.homeOf[e.id];
                   return (
                     <td key={d.toISOString()} className={"wa-cell"+(isHome?" wa-cell--home":"")}
                       style={isHome?{}:{ background:rgba(e.color,0.15), boxShadow:`inset 3px 0 0 ${e.color}` }} onClick={()=>onPickDay(d)}>
-                      {PLACES[loc].name}
+                      {ctx.placeOf(loc).name}
                     </td>
                   );
                 })}
@@ -849,18 +824,15 @@ function WeekView({ entities, cursor, onPickDay }){
           </tbody>
         </table>
       </div>
-      <p className="wa-hint" style={{margin:"10px 4px 0"}}>Tap a day to open it. Read a column to see where everyone is that day; read a row to follow one person across the week.</p>
+      <p className="wa-hint" style={{margin:"10px 4px 0"}}>Tap a day to open it. Read a column for where everyone is that day; read a row to follow one person across the week.</p>
     </div>
   );
 }
 
-/* ============================================================
-   MONTH VIEW
-   ============================================================ */
-function MonthView({ entities, cursor, onPickDay }){
+/* ============================================================ MONTH VIEW ============================================================ */
+function MonthView({ entities, cursor, ctx, onPickDay }){
   const y = cursor.getFullYear(), m = cursor.getMonth();
-  const first = new Date(y, m, 1);
-  const gridStart = startOfWeek(first);
+  const gridStart = startOfWeek(new Date(y, m, 1));
   const today = new Date();
   const cells = Array.from({ length:42 }).map((_, i) => addDays(gridStart, i));
   return (
@@ -869,8 +841,8 @@ function MonthView({ entities, cursor, onPickDay }){
       <div className="wa-month__grid">
         {cells.map((d) => {
           const inMonth = d.getMonth() === m;
-          const away = entities.map((e) => ({ e, loc:dayPlacement(e.id, d) })).filter((x) => x.loc !== HOME_OF[x.e.id]);
-          const tripDay = away.some((x) => PLACES[x.loc].kind === "metro" && false); // trips land here once placements drive it
+          const away = entities.map((e) => ({ e, loc:ctx.dayPlacement(e.id, d) })).filter((x) => x.loc !== ctx.homeOf[x.e.id]);
+          const tripDay = ctx.anyTrip(d);
           const boardingDay = away.some((x) => x.loc === "jordanvalley");
           return (
             <button key={d.toISOString()}
@@ -879,7 +851,7 @@ function MonthView({ entities, cursor, onPickDay }){
               <span className="wa-mday__n">{d.getDate()}</span>
               <span className="wa-mday__dots">
                 {away.slice(0,8).map((x, i) => (
-                  <span key={i} className="wa-dot" style={{ background:x.e.color, border:x.e.color.toUpperCase()==="#FFFFFF"?"1px solid #C7CDD6":"none" }} />
+                  <span key={i} className="wa-dot" style={{ background:x.e.color, border:(x.e.color||"").toUpperCase()==="#FFFFFF"?"1px solid #C7CDD6":"none" }} />
                 ))}
                 {away.length>8 && <span className="wa-dot__more">+{away.length-8}</span>}
               </span>
@@ -887,22 +859,19 @@ function MonthView({ entities, cursor, onPickDay }){
           );
         })}
       </div>
-      <p className="wa-hint" style={{margin:"10px 4px 0"}}>Each dot is someone away from home. Quiet days mean everyone's home; days with a dog at the kennel are tinted.</p>
+      <p className="wa-hint" style={{margin:"10px 4px 0"}}>Each dot is someone away from home. Quiet days mean everyone's home; trip and kennel days are tinted.</p>
     </div>
   );
 }
 
-/* ============================================================
-   YEAR VIEW
-   ============================================================ */
-function YearView({ entities, cursor, onPickMonth }){
+/* ============================================================ YEAR VIEW ============================================================ */
+function YearView({ entities, cursor, ctx, onPickMonth }){
   const y = cursor.getFullYear();
-  const total = entities.length;
+  const total = Math.max(1, entities.length);
   return (
     <div className="wa-year">
       {Array.from({ length:12 }).map((_, m) => {
-        const first = new Date(y, m, 1);
-        const gridStart = startOfWeek(first);
+        const gridStart = startOfWeek(new Date(y, m, 1));
         const cells = Array.from({ length:42 }).map((_, i) => addDays(gridStart, i));
         return (
           <div key={m} className="wa-ymonth">
@@ -911,11 +880,10 @@ function YearView({ entities, cursor, onPickMonth }){
               {cells.map((d) => {
                 const inMonth = d.getMonth() === m;
                 let awayCount = 0;
-                if(inMonth){ entities.forEach((e) => { if(dayPlacement(e.id, d) !== HOME_OF[e.id]) awayCount++; }); }
+                if(inMonth){ entities.forEach((e) => { if(ctx.dayPlacement(e.id, d) !== ctx.homeOf[e.id]) awayCount++; }); }
                 const intensity = inMonth ? awayCount/total : 0;
                 const bg = !inMonth ? "transparent" : rgba("#19212B", 0.05 + intensity*0.55);
-                return <span key={d.toISOString()} className="wa-ycell" style={{ background:bg }}
-                  title={inMonth ? `${MONTH_ABBR[m]} ${d.getDate()} - ${awayCount} away` : ""} />;
+                return <span key={d.toISOString()} className="wa-ycell" style={{ background:bg }} title={inMonth ? `${MONTH_ABBR[m]} ${d.getDate()} - ${awayCount} away` : ""} />;
               })}
             </div>
           </div>
@@ -926,81 +894,220 @@ function YearView({ entities, cursor, onPickMonth }){
 }
 
 /* ============================================================
-   SYNC PROBE (only when the backend is configured) - proves the
-   family-account round-trip before the real data-entry UI exists.
+   PLACEMENT SHEET - create/edit a pin, trip, or journey.
    ============================================================ */
-function SyncProbe({ store, toast }){
-  const d = store.data;
-  const SAMPLES = [
-    { short:"Po", name:"Pops",    kind:"person", color:"#1E40AF" },
-    { short:"Kr", name:"Kristin", kind:"person", color:"#DB2777" },
-    { short:"Gh", name:"Graham",  kind:"pet",    color:"#7C4A2D" },
-  ];
-  function addSample(){ const s = SAMPLES[(d.entities||[]).length % SAMPLES.length]; store.upsert("entities", { ...s, home:"sanantonio" }); toast("Added "+s.name+" - watch it sync"); }
-  function clearSamples(){ (d.entities||[]).forEach(e => store.remove("entities", e.id)); toast("Cleared sample entities"); }
+function PlacementSheet({ entities, places, store, seed, onClose, toast }){
+  const editing = !!(seed && seed.id);
+  const firstE = entities[0] ? entities[0].id : "";
+  const firstP = places[0] ? places[0].id : "";
+  const secondP = places[1] ? places[1].id : firstP;
+  const [type,setType]=useState((seed&&seed.type) || "pin");
+  const [entityId,setEntityId]=useState((seed&&(seed.entityId||(seed.entityIds&&seed.entityIds[0]))) || firstE);
+  const [entityIds,setEntityIds]=useState((seed&&seed.entityIds) || (seed&&seed.entityId?[seed.entityId]:[]) );
+  const [date,setDate]=useState((seed&&seed.date) || ymd(new Date()));
+  const [start,setStart]=useState((seed&&seed.start) || ymd(new Date()));
+  const [end,setEnd]=useState((seed&&seed.end) || ymd(new Date()));
+  const [place,setPlace]=useState((seed&&seed.place) || firstP);
+  const [from,setFrom]=useState((seed&&seed.from) || firstP);
+  const [to,setTo]=useState((seed&&seed.to) || secondP);
+  const [tag,setTag]=useState((seed&&seed.tag) || "");
+
+  function toggleId(id){ setEntityIds((arr)=> arr.includes(id) ? arr.filter(x=>x!==id) : [...arr, id]); }
+
+  function save(){
+    let rec;
+    if(type==="pin"){ if(!entityId||!place){ toast("Pick a person and place"); return; } rec={ id:seed&&seed.id, type:"pin", entityId, date, place }; }
+    else if(type==="journey"){ if(!entityId){ toast("Pick a person"); return; } if(from===to){ toast("From and To should differ"); return; } rec={ id:seed&&seed.id, type:"journey", entityId, date, from, to }; }
+    else { const ids = entityIds.length?entityIds:(entityId?[entityId]:[]); if(!ids.length||!place){ toast("Pick people and a place"); return; }
+      if(strToYmd(end) < strToYmd(start)){ toast("End is before start"); return; } rec={ id:seed&&seed.id, type:"trip", entityIds:ids, start, end, place, tag }; }
+    store.upsert("placements", rec);
+    toast(editing?"Updated":"Saved"); onClose();
+  }
+  function del(){ if(seed&&seed.id){ store.remove("placements", seed.id); toast("Removed"); } onClose(); }
+
+  const TypeBtn = (t,label) => <button className={"wa-seg__b"+(type===t?" is-on":"")} onClick={()=>setType(t)}>{label}</button>;
+  const personOptions = entities.map(e => <option key={e.id} value={e.id}>{e.name}</option>);
+  const placeOptions = places.map(p => <option key={p.id} value={p.id}>{p.name}</option>);
+
   return (
-    <div className="wa-card" style={{marginBottom:16}}>
-      <h2 style={{fontFamily:"var(--display)",fontWeight:700,fontSize:17,margin:"0 0 4px"}}>Sync check</h2>
-      <p className="wa-hint">Temporary panel: it writes to the real backend so we can verify the family account round-trips before the data-entry UI lands.</p>
-      <div className="wa-probe">
-        <div className="wa-probe__cell"><div className="wa-probe__n">{(d.entities||[]).length}</div><div className="wa-probe__k">Entities</div></div>
-        <div className="wa-probe__cell"><div className="wa-probe__n">{(d.places||[]).length}</div><div className="wa-probe__k">Places</div></div>
-        <div className="wa-probe__cell"><div className="wa-probe__n">{(d.placements||[]).length}</div><div className="wa-probe__k">Placements</div></div>
-      </div>
-      <div className="wa-probe__row">
-        <button className="wa-btn wa-btn--primary" onClick={addSample}>Add sample entity</button>
-        {(d.entities||[]).length>0 && <button className="wa-btn" onClick={clearSamples}>Clear</button>}
+    <div className="wa-modalscrim" onClick={onClose}>
+      <div className="wa-sheet" onClick={(e)=>e.stopPropagation()} role="dialog" aria-label="Set location">
+        <div className="wa-sheet__head">
+          <h2>{editing?"Edit placement":"Set location"}</h2>
+          <button className="wa-x" onClick={onClose} aria-label="Close">{"×"}</button>
+        </div>
+        <div className="wa-seg">{TypeBtn("pin","Pin (a day)")}{TypeBtn("trip","Trip (range)")}{TypeBtn("journey","Journey")}</div>
+
+        {type!=="trip" &&
+          <div className="wa-field"><span className="wa-label">Person</span>
+            <select className="wa-select" value={entityId} onChange={e=>setEntityId(e.target.value)}>{personOptions}</select></div>}
+
+        {type==="pin" && <>
+          <div className="wa-field"><span className="wa-label">Date</span><input className="wa-input" type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
+          <div className="wa-field"><span className="wa-label">Place</span><select className="wa-select" value={place} onChange={e=>setPlace(e.target.value)}>{placeOptions}</select></div>
+        </>}
+
+        {type==="journey" && <>
+          <div className="wa-field"><span className="wa-label">Date</span><input className="wa-input" type="date" value={date} onChange={e=>setDate(e.target.value)} /></div>
+          <div className="wa-row2">
+            <div className="wa-field"><span className="wa-label">From</span><select className="wa-select" value={from} onChange={e=>setFrom(e.target.value)}>{placeOptions}</select></div>
+            <div className="wa-field"><span className="wa-label">To</span><select className="wa-select" value={to} onChange={e=>setTo(e.target.value)}>{placeOptions}</select></div>
+          </div>
+          <p className="wa-hint">A travel day splits at midday (morning at From, afternoon at To).</p>
+        </>}
+
+        {type==="trip" && <>
+          <div className="wa-field"><span className="wa-label">Who (one or more)</span>
+            <div className="wa-checks">
+              {entities.map(e => (
+                <button key={e.id} className={"wa-checkpill"+(entityIds.includes(e.id)?" is-on":"")} onClick={()=>toggleId(e.id)}>
+                  <Token entity={e} size={18} />{firstName(e.name)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="wa-row2">
+            <div className="wa-field"><span className="wa-label">Start</span><input className="wa-input" type="date" value={start} onChange={e=>setStart(e.target.value)} /></div>
+            <div className="wa-field"><span className="wa-label">End</span><input className="wa-input" type="date" value={end} onChange={e=>setEnd(e.target.value)} /></div>
+          </div>
+          <div className="wa-field"><span className="wa-label">Place</span><select className="wa-select" value={place} onChange={e=>setPlace(e.target.value)}>{placeOptions}</select></div>
+          <div className="wa-field"><span className="wa-label">Tag (optional)</span>
+            <select className="wa-select" value={tag} onChange={e=>setTag(e.target.value)}>
+              <option value="">None</option><option value="work">Work</option><option value="vacation">Vacation</option>
+            </select></div>
+        </>}
+
+        <button className="wa-btn wa-btn--primary wa-btn--block" onClick={save}>{editing?"Save changes":"Save"}</button>
+        {editing && <button className="wa-btn wa-btn--danger wa-btn--block" style={{marginTop:10}} onClick={del}>Remove this placement</button>}
       </div>
     </div>
   );
 }
 
-/* ============================================================
-   SETTINGS (family colors + account + diagnostics)
-   ============================================================ */
+/* ============================================================ PERSON / PLACE EDITORS ============================================================ */
+function PersonEditor({ entity, places, store, onClose, toast }){
+  const t = entity || {};
+  const [name,setName]=useState(t.name||"");
+  const [short,setShort]=useState(t.short||"");
+  const [kind,setKind]=useState(t.kind||"person");
+  const [color,setColor]=useState(t.color||"#1E40AF");
+  const [home,setHome]=useState(t.home || (places[0]?places[0].id:"sanantonio"));
+  function save(){
+    if(!name.trim()){ toast("Name it first"); return; }
+    const s = ((short||name.slice(0,2)).trim()||name.slice(0,2)).slice(0,2);
+    store.upsert("entities", { id:t.id, name:name.trim(), short:s, kind, color, home, order:t.order });
+    toast(t.id?"Saved":"Added"); onClose();
+  }
+  function del(){ if(t.id){ store.remove("entities", t.id); toast("Removed"); } onClose(); }
+  return (
+    <div className="wa-modalscrim" onClick={onClose}>
+      <div className="wa-sheet" onClick={(e)=>e.stopPropagation()} role="dialog" aria-label="Edit person">
+        <div className="wa-sheet__head"><h2>{t.id?"Edit":"Add person or pet"}</h2><button className="wa-x" onClick={onClose}>{"×"}</button></div>
+        <div className="wa-field"><span className="wa-label">Name</span><input className="wa-input" value={name} onChange={e=>setName(e.target.value)} placeholder="Name" autoFocus /></div>
+        <div className="wa-row2">
+          <div className="wa-field"><span className="wa-label">Initials</span><input className="wa-input" value={short} maxLength={2} onChange={e=>setShort(e.target.value)} placeholder="2 letters" /></div>
+          <div className="wa-field"><span className="wa-label">Kind</span>
+            <select className="wa-select" value={kind} onChange={e=>setKind(e.target.value)}><option value="person">Person</option><option value="pet">Pet</option></select></div>
+        </div>
+        <div className="wa-row2">
+          <div className="wa-field"><span className="wa-label">Color</span><input type="color" className="wa-set__color" style={{width:"100%",height:44}} value={color} onChange={e=>setColor(e.target.value)} /></div>
+          <div className="wa-field"><span className="wa-label">Home base</span>
+            <select className="wa-select" value={home} onChange={e=>setHome(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
+        </div>
+        <button className="wa-btn wa-btn--primary wa-btn--block" onClick={save}>{t.id?"Save changes":"Add"}</button>
+        {t.id && <button className="wa-btn wa-btn--danger wa-btn--block" style={{marginTop:10}} onClick={del}>Remove</button>}
+      </div>
+    </div>
+  );
+}
+function PlaceEditor({ place, store, onClose, toast }){
+  const t = place || {};
+  const [name,setName]=useState(t.name||"");
+  const [full,setFull]=useState(t.full||"");
+  const [kind,setKind]=useState(t.kind||"metro");
+  function save(){ if(!name.trim()){ toast("Name it first"); return; } store.upsert("places", { id:t.id, name:name.trim(), full:full.trim(), kind, order:t.order }); toast(t.id?"Saved":"Added"); onClose(); }
+  function del(){ if(t.id){ store.remove("places", t.id); toast("Removed"); } onClose(); }
+  return (
+    <div className="wa-modalscrim" onClick={onClose}>
+      <div className="wa-sheet" onClick={(e)=>e.stopPropagation()} role="dialog" aria-label="Edit place">
+        <div className="wa-sheet__head"><h2>{t.id?"Edit place":"Add place"}</h2><button className="wa-x" onClick={onClose}>{"×"}</button></div>
+        <div className="wa-field"><span className="wa-label">Name</span><input className="wa-input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Dallas" autoFocus /></div>
+        <div className="wa-field"><span className="wa-label">Detail</span><input className="wa-input" value={full} onChange={e=>setFull(e.target.value)} placeholder="e.g. house & apartments" /></div>
+        <div className="wa-field"><span className="wa-label">Kind</span>
+          <select className="wa-select" value={kind} onChange={e=>setKind(e.target.value)}>{PLACE_KINDS.map(k=><option key={k} value={k}>{k}</option>)}</select></div>
+        <button className="wa-btn wa-btn--primary wa-btn--block" onClick={save}>{t.id?"Save changes":"Add"}</button>
+        {t.id && <button className="wa-btn wa-btn--danger wa-btn--block" style={{marginTop:10}} onClick={del}>Remove</button>}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================ SETTINGS ============================================================ */
 function Diagnostics({ onClose }){
   return (
     <div>
-      <div className="wa-drawer__head" style={{marginBottom:12}}>
-        <h2>Diagnostics</h2>
-        <button className="wa-x" onClick={onClose} aria-label="Back">{"←"}</button>
-      </div>
+      <div className="wa-drawer__head" style={{marginBottom:12}}><h2>Diagnostics</h2><button className="wa-x" onClick={onClose} aria-label="Back">{"←"}</button></div>
       <div className="wa-log">
-        {LOG.slice().reverse().map((l,i) => (
-          <div key={i}><span className="t">{l.t}</span> <span className={"tag"+(l.tag==="ERROR"?" err":"")}>[{l.tag}]</span> {l.msg}</div>
-        ))}
+        {LOG.slice().reverse().map((l,i) => (<div key={i}><span className="t">{l.t}</span> <span className={"tag"+(l.tag==="ERROR"?" err":"")}>[{l.tag}]</span> {l.msg}</div>))}
       </div>
     </div>
   );
 }
 
-function Settings({ store, entities, onColor, onReset, onClose, onCheckUpdate }){
+function Settings({ store, entities, places, placeOf, onColor, onResetColors, onEditPerson, onAddPerson, onEditPlace, onAddPlace, onEditPlacement, onClose, onCheckUpdate }){
   const [diag, setDiag] = useState(false);
   const people = entities.filter((e) => e.kind === "person");
   const pets = entities.filter((e) => e.kind === "pet");
-  const Row = (e) => (
-    <label key={e.id} className="wa-set__row">
+  const placements = store.data.placements || [];
+
+  const PersonRow = (e) => (
+    <div key={e.id} className="wa-set__row">
       <Token entity={e} size={28} />
-      <span className="wa-set__name">{e.name}</span>
-      <input type="color" value={e.color} onChange={(ev)=>onColor(e.id, ev.target.value)} className="wa-set__color" />
-    </label>
+      <button className="wa-set__name" onClick={()=>onEditPerson(e)}>{e.name}<small>home: {placeOf(e.home).name}</small></button>
+      <input type="color" value={e.color} onChange={(ev)=>onColor(e.id, ev.target.value)} className="wa-set__color" title="Quick color" />
+    </div>
   );
+  const placementLabel = (p) => {
+    if(p.type==="journey") return { txt: firstName((entities.find(e=>e.id===p.entityId)||{}).name||p.entityId), sub:`${placeOf(p.from).name} → ${placeOf(p.to).name} · ${fmtYmd(p.date)}` };
+    if(p.type==="trip"){ const names=(p.entityIds||[]).map(id=>firstName((entities.find(e=>e.id===id)||{}).name||id)).join(", "); return { txt:names||"Trip", sub:`${placeOf(p.place).name} · ${fmtYmd(p.start)}–${fmtYmd(p.end)}${p.tag?" · "+p.tag:""}` }; }
+    return { txt: firstName((entities.find(e=>e.id===p.entityId)||{}).name||p.entityId), sub:`${placeOf(p.place).name} · ${fmtYmd(p.date)}` };
+  };
+
   return (
     <>
       <div className="wa-scrim" onClick={onClose} />
       <div className="wa-drawer" role="dialog" aria-label="Settings">
         {diag ? <Diagnostics onClose={()=>setDiag(false)} /> : (
           <>
-            <div className="wa-drawer__head">
-              <h2>Settings</h2>
-              <button className="wa-x" onClick={onClose} aria-label="Close">{"×"}</button>
-            </div>
+            <div className="wa-drawer__head"><h2>Settings</h2><button className="wa-x" onClick={onClose} aria-label="Close">{"×"}</button></div>
 
-            <p className="wa-set__group">Family colors</p>
-            {people.map(Row)}
+            <p className="wa-set__group">People</p>
+            {people.map(PersonRow)}
             <p className="wa-set__group">Pets</p>
-            {pets.map(Row)}
-            <button className="wa-set__reset" onClick={onReset}>Reset to defaults</button>
+            {pets.map(PersonRow)}
+            <button className="wa-addrow" onClick={onAddPerson}>+ Add person or pet</button>
+            <button className="wa-set__reset" onClick={onResetColors}>Reset colors to defaults</button>
+
+            <p className="wa-set__group">Places</p>
+            {places.map(p => (
+              <div key={p.id} className="wa-set__row">
+                <button className="wa-set__name" onClick={()=>onEditPlace(p)}>{p.name}<small>{p.kind}{p.full?" · "+p.full:""}</small></button>
+              </div>
+            ))}
+            <button className="wa-addrow" onClick={onAddPlace}>+ Add place</button>
+
+            <p className="wa-set__group">Placements ({placements.length})</p>
+            {placements.length===0 && <p className="wa-hint">None yet. Tap a person in Now or Day, or the + button, to set where someone is.</p>}
+            {placements.map(p => {
+              const L = placementLabel(p);
+              return (
+                <div key={p.id} className="wa-prow">
+                  <div className="wa-prow__txt"><b>{L.txt}</b> <span style={{color:"var(--muted)",textTransform:"capitalize"}}>{p.type}</span><div className="wa-prow__sub">{L.sub}</div></div>
+                  <button className="wa-prow__del" onClick={()=>onEditPlacement(p)} title="Edit">{"✎"}</button>
+                  <button className="wa-prow__del" onClick={()=>{ store.remove("placements", p.id); }} title="Remove">{"×"}</button>
+                </div>
+              );
+            })}
 
             {CONFIGURED && <>
               <p className="wa-set__group">Family account</p>
@@ -1014,9 +1121,7 @@ function Settings({ store, entities, onColor, onReset, onClose, onCheckUpdate })
 
             {CONFIGURED &&
               <button className="wa-btn wa-btn--danger wa-btn--block" style={{marginTop:18}}
-                onClick={()=>{ FILES.forEach(f=>lsDel("cache:"+f)); ["cfg","dirty"].forEach(lsDel); store.signOut().then(()=>location.reload()); }}>
-                Sign out & clear this device
-              </button>}
+                onClick={()=>{ FILES.forEach(f=>lsDel("cache:"+f)); ["cfg","dirty"].forEach(lsDel); store.signOut().then(()=>location.reload()); }}>Sign out & clear this device</button>}
             <p className="wa-hint" style={{textAlign:"center",marginTop:14,opacity:.7}}>Whereabouts - build {BUILD}</p>
           </>
         )}
@@ -1025,16 +1130,11 @@ function Settings({ store, entities, onColor, onReset, onClose, onCheckUpdate })
   );
 }
 
-/* ============================================================
-   LOGIN (family account)
-   ============================================================ */
+/* ============================================================ LOGIN ============================================================ */
 function Login({ store, toast }){
   const [mode,setMode]=useState("signin");
-  const [email,setEmail]=useState("");
-  const [password,setPassword]=useState("");
-  const [busy,setBusy]=useState(false);
-  const [err,setErr]=useState("");
-  const [sent,setSent]=useState(false);
+  const [email,setEmail]=useState(""); const [password,setPassword]=useState("");
+  const [busy,setBusy]=useState(false); const [err,setErr]=useState(""); const [sent,setSent]=useState(false);
   const isSignup = mode==="signup";
   async function submit(){
     setErr("");
@@ -1044,17 +1144,14 @@ function Login({ store, toast }){
     try{
       if(isSignup){ const { needsConfirm } = await store.signUp(email, password); if(needsConfirm) setSent(true); else toast("Account created"); }
       else { await store.signIn(email, password); toast("Signed in"); }
-    }catch(e){ setErr(e.message||"Something went wrong."); }
-    finally{ setBusy(false); }
+    }catch(e){ setErr(e.message||"Something went wrong."); } finally{ setBusy(false); }
   }
   if(sent){
     return (
       <div className="wa-login">
-        <div className="wa-login__eyebrow">Almost there</div>
-        <h1 className="wa-login__title">Check your email</h1>
+        <div className="wa-login__eyebrow">Almost there</div><h1 className="wa-login__title">Check your email</h1>
         <p className="wa-hint" style={{marginTop:10,fontSize:14}}>We sent a confirmation link to <b>{email.trim()}</b>. Tap it, then come back and sign in.</p>
         <button className="wa-btn wa-btn--block" style={{marginTop:18}} onClick={()=>{ setSent(false); setMode("signin"); setPassword(""); setErr(""); }}>Back to sign in</button>
-        <p className="wa-hint" style={{textAlign:"center",marginTop:16,opacity:.6}}>build {BUILD}</p>
       </div>
     );
   }
@@ -1065,11 +1162,9 @@ function Login({ store, toast }){
       <p className="wa-hint" style={{marginTop:8,fontSize:14}}>The family calendar of where everyone's planned to be. {isSignup?"Create your family account to sync across the wall tablet and phones.":"Sign in to your family account."}</p>
       <div className="wa-card" style={{marginTop:18}}>
         <div className="wa-field"><span className="wa-label">Email</span>
-          <input className="wa-input" type="email" value={email} autoCapitalize="off" autoCorrect="off"
-            onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" onKeyDown={e=>{ if(e.key==="Enter") submit(); }}/></div>
+          <input className="wa-input" type="email" value={email} autoCapitalize="off" autoCorrect="off" onChange={e=>setEmail(e.target.value)} placeholder="you@example.com" onKeyDown={e=>{ if(e.key==="Enter") submit(); }}/></div>
         <div className="wa-field"><span className="wa-label">Password</span>
-          <input className="wa-input" type="password" value={password} autoCapitalize="off"
-            onChange={e=>setPassword(e.target.value)} placeholder={isSignup?"At least 6 characters":"Your password"} onKeyDown={e=>{ if(e.key==="Enter") submit(); }}/></div>
+          <input className="wa-input" type="password" value={password} autoCapitalize="off" onChange={e=>setPassword(e.target.value)} placeholder={isSignup?"At least 6 characters":"Your password"} onKeyDown={e=>{ if(e.key==="Enter") submit(); }}/></div>
         {err && <p className="wa-hint" style={{color:"var(--red)"}}>{err}</p>}
         <button className="wa-btn wa-btn--primary wa-btn--block" style={{marginTop:6}} disabled={busy} onClick={submit}>{busy?"...":(isSignup?"Create account":"Sign in")}</button>
       </div>
@@ -1080,28 +1175,59 @@ function Login({ store, toast }){
   );
 }
 
-/* ============================================================
-   APP SHELL
-   ============================================================ */
+/* ============================================================ APP SHELL ============================================================ */
 const VIEWS = ["Now","Day","Week","Month","Year"];
 
 function App(){
   const store = useStore();
-  // Family entities: seeded from the prototype roster for now. STEP 3/4 sources
-  // and persists these via the entities collection + meta (colors).
-  const [entities,setEntities]=useState(SEED_ENTITIES);
   const [view,setView]=useState("Now");
   const [cursor,setCursor]=useState(new Date());
   const [tick,setTick]=useState(0);
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [placeSheet,setPlaceSheet]=useState(null);   // { seed } | null
+  const [personEdit,setPersonEdit]=useState(null);   // entity | {} | null
+  const [placeEdit,setPlaceEdit]=useState(null);     // place | {} | null
   const [toastObj,setToastObj]=useState(null);
   const toastRef = useRef();
   const toast = useCallback((m)=>{ setToastObj(m); clearTimeout(toastRef.current); toastRef.current=setTimeout(()=>setToastObj(null),2400); },[]);
 
   useEffect(()=>{ const id=setInterval(()=>setTick(t=>t+1),60000); return ()=>clearInterval(id); },[]);
 
-  const setColor = (id, color) => setEntities((arr) => arr.map((e) => (e.id===id ? { ...e, color } : e)));
-  const resetColors = () => setEntities(SEED_ENTITIES);
+  // First-run seed: brand-new account (or local preview) gets the roster + places.
+  const seededRef = useRef(false);
+  useEffect(()=>{
+    if(seededRef.current) return;
+    if(!store.authReady) return;
+    if(CONFIGURED && !store.authed) return;
+    if(CONFIGURED && store.sync==="busy") return;   // wait for the initial pull to settle
+    const ents = store.data.entities||[], plcs = store.data.places||[];
+    if(ents.length===0 && plcs.length===0){
+      seededRef.current = true;
+      store.seedMany("places", SEED_PLACES);
+      store.seedMany("entities", SEED_ENTITIES);
+      log("SEED","first-run seed of roster + places");
+    } else { seededRef.current = true; }
+  }, [store.authReady, store.authed, store.sync, store.data.entities, store.data.places]);
+
+  // Derived, sorted family + places from the store.
+  const entities = useMemo(()=> [...(store.data.entities||[])].sort((a,b)=>(a.order??999)-(b.order??999)), [store.data.entities]);
+  const places   = useMemo(()=> [...(store.data.places||[])].sort((a,b)=>(a.order??999)-(b.order??999)), [store.data.places]);
+  const homeOf   = useMemo(()=>{ const m={}; entities.forEach(e=>{ m[e.id]=e.home||"sanantonio"; }); return m; }, [entities]);
+  const placesById = useMemo(()=>{ const m={}; places.forEach(p=>{ m[p.id]=p; }); return m; }, [places]);
+  const placeOrder = useMemo(()=> places.map(p=>p.id), [places]);
+  const resolver = useMemo(()=> makeResolver(store.data.placements||[], homeOf), [store.data.placements, homeOf]);
+  const placeOf = useCallback((id)=> placesById[id] || { id, name:id, full:"", kind:"metro" }, [placesById]);
+
+  // Tap a person+date -> edit the existing single-day placement, or start a new pin.
+  const onPick = useCallback((entityId, date)=>{
+    const key = ymdNum(date);
+    const existing = (store.data.placements||[]).find(p =>
+      (p.type==="pin" || p.type==="journey") && p.entityId===entityId && p.date && strToYmd(p.date)===key);
+    if(existing) setPlaceSheet({ seed: existing });
+    else setPlaceSheet({ seed: { type:"pin", entityId, date: ymd(date), place: resolver.placementAt(entityId, date) } });
+  }, [store.data.placements, resolver]);
+
+  const ctx = useMemo(()=> ({ ...resolver, placeOf, homeOf, placeOrder, onPick }), [resolver, placeOf, homeOf, placeOrder, onPick]);
 
   // PWA self-update
   const [update,setUpdate]=useState(null);
@@ -1122,6 +1248,10 @@ function App(){
     return ()=>document.removeEventListener("visibilitychange", onVis);
   },[checkUpdate]);
   function applyUpdate(){ window.location.replace(location.pathname + "?u=" + encodeURIComponent(update||String(Date.now()))); }
+
+  const setColor = (id, color) => store.upsert("entities", { id, color });
+  const resetColors = () => entities.forEach(e => { if(DEFAULT_COLOR[e.id]) store.upsert("entities", { id:e.id, color:DEFAULT_COLOR[e.id] }); });
+  const nextOrder = (arr) => (arr.length ? Math.max(...arr.map(x=>x.order??0)) + 1 : 0);
 
   const isLive = sameDay(cursor, new Date()) && Math.abs(cursor.getHours() - new Date().getHours()) === 0;
 
@@ -1146,29 +1276,21 @@ function App(){
   const goToday = () => setCursor(new Date());
 
   if(!store.authReady) return <div className="wa-root"><p className="wa-hint" style={{textAlign:"center",marginTop:90}}>Loading...</p></div>;
-  // Configured: require the family login. Unconfigured: local preview, no gate.
   if(CONFIGURED && !store.authed) return (
-    <div className="wa-root">
-      <Login store={store} toast={toast}/>
-      {toastObj && <div className="wa-toast">{toastObj}</div>}
-    </div>
+    <div className="wa-root"><Login store={store} toast={toast}/>{toastObj && <div className="wa-toast">{toastObj}</div>}</div>
   );
 
   return (
     <div className="wa-root">
       {update &&
         <button className="wa-update" onClick={applyUpdate}>
-          <span>Update available - tap to refresh (build {update})</span>
-          <span className="wa-update__go">Refresh</span>
+          <span>Update available - tap to refresh (build {update})</span><span className="wa-update__go">Refresh</span>
         </button>}
 
       <header className="wa-top">
         <div className="wa-brand">
           <span className="wa-brand__mark" aria-hidden="true" />
-          <div>
-            <h1 className="wa-brand__name">Whereabouts</h1>
-            <p className="wa-brand__sub">{label}</p>
-          </div>
+          <div><h1 className="wa-brand__name">Whereabouts</h1><p className="wa-brand__sub">{label}</p></div>
         </div>
         <nav className="wa-tabs" aria-label="Views">
           {VIEWS.map(v => <button key={v} className={"wa-tab"+(v===view?" is-active":"")} onClick={()=>setView(v)}>{v}</button>)}
@@ -1182,37 +1304,41 @@ function App(){
             </div>
           )}
           {view==="Now" && <button className="wa-today" onClick={goToday}>Now</button>}
+          <button className="wa-iconbtn wa-plus" onClick={()=>setPlaceSheet({ seed:null })} aria-label="Set location">{"+"}</button>
           <button className="wa-iconbtn" onClick={()=>setSettingsOpen(true)} aria-label="Settings">{"⚙"}</button>
         </div>
       </header>
 
       <main className="wa-main">
-        {view==="Now" && <>
-          {CONFIGURED && <SyncProbe store={store} toast={toast}/>}
-          <NowBoard entities={entities} cursor={cursor} setCursor={setCursor} isLive={isLive} />
-        </>}
-        {view==="Day" && <DayView entities={entities} cursor={cursor} />}
-        {view==="Week" && <WeekView entities={entities} cursor={cursor} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
-        {view==="Month" && <MonthView entities={entities} cursor={cursor} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
-        {view==="Year" && <YearView entities={entities} cursor={cursor} onPickMonth={(m)=>{ setCursor(new Date(cursor.getFullYear(), m, 1)); setView("Month"); }} />}
+        {view==="Now" && <NowBoard entities={entities} cursor={cursor} setCursor={setCursor} isLive={isLive} ctx={ctx} />}
+        {view==="Day" && <DayView entities={entities} cursor={cursor} ctx={ctx} />}
+        {view==="Week" && <WeekView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
+        {view==="Month" && <MonthView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
+        {view==="Year" && <YearView entities={entities} cursor={cursor} ctx={ctx} onPickMonth={(m)=>{ setCursor(new Date(cursor.getFullYear(), m, 1)); setView("Month"); }} />}
       </main>
 
       <footer className="wa-legend">
-        {entities.map((e) => (
-          <span key={e.id} className="wa-legend__item"><Token entity={e} size={20} /><span>{firstName(e.name)}</span></span>
-        ))}
+        {entities.map((e) => (<span key={e.id} className="wa-legend__item"><Token entity={e} size={20} /><span>{firstName(e.name)}</span></span>))}
       </footer>
-      {!CONFIGURED && <p className="wa-previewnote">Local preview - sample family from the prototype. Sign-in + sync light up once the backend is configured.</p>}
+      {!CONFIGURED && <p className="wa-previewnote">Local preview - your edits persist in this browser. Sign-in + cross-device sync light up once the backend is configured.</p>}
 
-      {settingsOpen && <Settings store={store} entities={entities} onColor={setColor} onReset={resetColors} onClose={()=>setSettingsOpen(false)} onCheckUpdate={checkUpdate}/>}
+      {settingsOpen && <Settings store={store} entities={entities} places={places} placeOf={placeOf}
+        onColor={setColor} onResetColors={resetColors}
+        onEditPerson={(e)=>setPersonEdit(e)} onAddPerson={()=>setPersonEdit({ order: nextOrder(entities) })}
+        onEditPlace={(p)=>setPlaceEdit(p)} onAddPlace={()=>setPlaceEdit({ order: nextOrder(places) })}
+        onEditPlacement={(p)=>{ setSettingsOpen(false); setPlaceSheet({ seed:p }); }}
+        onClose={()=>setSettingsOpen(false)} onCheckUpdate={checkUpdate} />}
+
+      {placeSheet && <PlacementSheet entities={entities} places={places} store={store} seed={placeSheet.seed} toast={toast} onClose={()=>setPlaceSheet(null)} />}
+      {personEdit && <PersonEditor entity={personEdit} places={places} store={store} toast={toast} onClose={()=>setPersonEdit(null)} />}
+      {placeEdit && <PlaceEditor place={placeEdit} store={store} toast={toast} onClose={()=>setPlaceEdit(null)} />}
+
       {toastObj && <div className="wa-toast">{toastObj}</div>}
     </div>
   );
 }
 
-/* ============================================================
-   MOUNT
-   ============================================================ */
+/* ============================================================ MOUNT ============================================================ */
 (function(){
   try{
     log("INIT","mounting app");
@@ -1221,8 +1347,7 @@ function App(){
     log("INIT","mounted");
   }catch(e){
     log("ERROR","mount failed: "+e.message);
-    document.getElementById("root").innerHTML =
-      '<div style="padding:40px;font-family:sans-serif"><h2>Startup error</h2><p>'+e.message+'</p></div>';
+    document.getElementById("root").innerHTML = '<div style="padding:40px;font-family:sans-serif"><h2>Startup error</h2><p>'+e.message+'</p></div>';
   }
 })();
 </script>
