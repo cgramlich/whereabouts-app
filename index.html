@@ -107,6 +107,11 @@
 .wa-range{ width:100%; margin:12px 0 4px; accent-color:var(--ink); }
 .wa-scrub__ticks{ display:flex; justify-content:space-between; font-family:var(--mono); font-size:11px; color:var(--muted); }
 
+/* Now: headline (the one-glance summary) */
+.wa-headline{ margin:2px 4px 12px; font-size:13.5px; color:var(--muted); }
+.wa-headline b{ color:var(--ink); font-weight:700; }
+.wa-headline .calm{ color:var(--green); font-weight:600; }
+
 /* Now: board */
 .wa-board{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:14px; }
 .wa-place{ background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:14px; box-shadow:0 1px 2px rgba(25,33,43,.04); animation:wa-rise .35s ease both; }
@@ -123,8 +128,9 @@
 /* Token */
 .wa-token{ display:inline-flex; align-items:center; justify-content:center; position:relative; font-family:var(--mono); font-weight:600; flex:none; box-shadow:0 1px 2px rgba(25,33,43,.18); }
 .wa-token--pet .wa-paw{ position:absolute; right:-3px; bottom:-3px; }
+.wa-token--calm{ box-shadow:none; }
 .wa-token--half{ position:relative; }
-.wa-token--half::after{ content:""; position:absolute; top:8%; bottom:8%; left:50%; width:1px; background:rgba(255,255,255,.55); }
+.wa-token--half::after{ content:""; position:absolute; top:6%; bottom:6%; left:50%; width:2px; transform:translateX(-1px); background:rgba(255,255,255,.7); }
 .wa-paw{ filter:drop-shadow(0 0 1px rgba(0,0,0,.25)); }
 
 /* Day view */
@@ -263,7 +269,7 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 /* ============================================================ LOGGING ============================================================ */
 const LOG_CAP = 600;
 const LOG = [];
-const BUILD = "2026-06-29.3";
+const BUILD = "2026-06-29.4";
 function log(tag, msg){
   const line = { t: new Date().toISOString().slice(11,19), tag, msg: String(msg) };
   LOG.push(line);
@@ -628,14 +634,19 @@ function useStore(){
 }
 
 /* ============================================================ TOKENS ============================================================ */
-function Token({ entity, size=34, title, onClick }){
-  const txt = readableText(entity.color);
+// calm = the person is in their home base -> render quiet (tinted, flat) so the
+// Now board reads calm when everyone's home and away-people pop in solid color.
+function Token({ entity, size=34, title, onClick, calm }){
   const isPet = entity.kind === "pet";
-  const needsBorder = (entity.color||"").toUpperCase() === "#FFFFFF";
+  const isWhite = (entity.color||"").toUpperCase() === "#FFFFFF";
+  const bg = calm ? rgba(entity.color, 0.16) : entity.color;
+  const txt = calm ? "#19212B" : readableText(entity.color);
+  const border = calm ? `1.5px solid ${isWhite ? "#C7CDD6" : rgba(entity.color, 0.55)}`
+                      : (isWhite ? "1.5px solid #C7CDD6" : "none");
   return (
-    <div className={"wa-token"+(isPet?" wa-token--pet":"")} title={title||entity.name} onClick={onClick}
-      style={{ width:size, height:size, background:entity.color, color:txt,
-        borderRadius:isPet?size*0.32:"50%", border:needsBorder?"1.5px solid #C7CDD6":"none", fontSize:size*0.34,
+    <div className={"wa-token"+(isPet?" wa-token--pet":"")+(calm?" wa-token--calm":"")} title={title||entity.name} onClick={onClick}
+      style={{ width:size, height:size, background:bg, color:txt,
+        borderRadius:isPet?size*0.32:"50%", border, fontSize:size*0.34,
         cursor:onClick?"pointer":"default" }}>
       {entity.short}
       {isPet && (
@@ -653,7 +664,7 @@ function HalfToken({ entity, size=38, title }){
   return (
     <div className="wa-token wa-token--half" title={title||entity.name}
       style={{ width:size, height:size, borderRadius:"50%",
-        background:`linear-gradient(90deg, ${entity.color} 0 50%, ${rgba(entity.color, 0.18)} 50% 100%)`,
+        background:`linear-gradient(90deg, ${entity.color} 0 50%, ${rgba(entity.color, 0.12)} 50% 100%)`,
         color:txt, fontSize:size*0.34, border:needsBorder?"1.5px solid #C7CDD6":`1.5px solid ${entity.color}`,
         textShadow:"0 1px 2px rgba(0,0,0,.4)" }}>
       {entity.short}
@@ -683,6 +694,12 @@ function NowBoard({ entities, cursor, setCursor, isLive, ctx }){
   const setHour = (h) => { const x=new Date(cursor); x.setHours(h,0,0,0); setCursor(x); };
   const ampm = (h) => `${((h+11)%12)+1} ${h<12?"AM":"PM"}`;
 
+  // One-glance headline: how many are away from their home base right now.
+  const awayCount = entities.filter((e) => {
+    if(ctx.journeyOf(e.id, cursor)) return true;            // traveling counts as away
+    return ctx.placementAt(e.id, cursor) !== ctx.homeOf[e.id];
+  }).length;
+
   return (
     <div>
       <div className="wa-scrub">
@@ -692,6 +709,11 @@ function NowBoard({ entities, cursor, setCursor, isLive, ctx }){
         </div>
         <input className="wa-range" type="range" min="0" max="23" value={hour} onChange={(e)=>setHour(Number(e.target.value))} aria-label="Time of day" />
         <div className="wa-scrub__ticks"><span>6 AM</span><span>Noon</span><span>6 PM</span><span>Midnight</span></div>
+      </div>
+      <div className="wa-headline">
+        {awayCount===0
+          ? <span className="calm">Everyone's home.</span>
+          : <span><b>{awayCount}</b> of {entities.length} away · <b>{entities.length-awayCount}</b> home</span>}
       </div>
       <div className="wa-board">
         {occupied.map((locId) => {
@@ -709,7 +731,7 @@ function NowBoard({ entities, cursor, setCursor, isLive, ctx }){
                   <div key={e.id} className="wa-place__person" onClick={()=>ctx.onPick(e.id, cursor)}>
                     {half
                       ? <HalfToken entity={e} size={38} title={`${e.name}: ${ctx.placeOf(half==="from"?locId:other).name} → ${ctx.placeOf(half==="from"?other:locId).name}`} />
-                      : <Token entity={e} size={38} />}
+                      : <Token entity={e} size={38} calm={locId===ctx.homeOf[e.id]} />}
                     <span className="wa-place__pname">{firstName(e.name)}</span>
                     {half==="from" && <span className="wa-place__sub">{"→ " + ctx.placeOf(other).name}</span>}
                     {half==="to" && <span className="wa-place__sub">{ctx.placeOf(other).name + " →"}</span>}
