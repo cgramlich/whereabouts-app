@@ -1,0 +1,16 @@
+{
+  "name": "Whereabouts",
+  "short_name": "Whereabouts",
+  "description": "A family calendar of where everyone's planned to be.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#E7EBF0",
+  "theme_color": "#E7EBF0",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

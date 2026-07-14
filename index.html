@@ -8,6 +8,10 @@
 <meta name="apple-mobile-web-app-title" content="Whereabouts" />
 <meta name="theme-color" content="#E7EBF0" />
 <title>Whereabouts</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="apple-touch-icon.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32.png" />
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet" />
@@ -269,7 +273,7 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 /* ============================================================ LOGGING ============================================================ */
 const LOG_CAP = 600;
 const LOG = [];
-const BUILD = "2026-06-29.4";
+const BUILD = "2026-06-30.1";   // keep in lockstep with VERSION in sw.js
 function log(tag, msg){
   const line = { t: new Date().toISOString().slice(11,19), tag, msg: String(msg) };
   LOG.push(line);
@@ -1372,6 +1376,17 @@ function App(){
     document.getElementById("root").innerHTML = '<div style="padding:40px;font-family:sans-serif"><h2>Startup error</h2><p>'+e.message+'</p></div>';
   }
 })();
+</script>
+<script>
+/* Register the offline service worker (relative path -> scoped to the app dir,
+   so it works on the project Pages site and later on a root domain). */
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function(){
+    navigator.serviceWorker.register("sw.js")
+      .then(function(r){ try { console.log("[SW] registered " + r.scope); } catch(e){} })
+      .catch(function(e){ try { console.log("[SW] register failed " + e.message); } catch(_){} });
+  });
+}
 </script>
 </body>
 </html>

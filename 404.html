@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Whereabouts</title>
+<meta name="robots" content="noindex" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Inter:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  body{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+        background:#E7EBF0; color:#19212B; font-family:'Inter',system-ui,sans-serif; text-align:center; }
+  .box{ padding:32px 24px; max-width:420px; }
+  h1{ font-family:'Bricolage Grotesque',sans-serif; font-weight:800; font-size:26px; margin:0 0 12px; letter-spacing:-.02em; }
+  p{ font-size:15px; line-height:1.5; color:#6B7480; margin:0 0 12px; }
+  a{ color:#19212B; font-weight:600; text-decoration:none; border-bottom:2px solid #D8DDE5; }
+</style>
+</head>
+<body>
+  <div class="box">
+    <h1>Page not found</h1>
+    <p>That page doesn't exist.</p>
+    <p><a id="appLink" href="./">Open Whereabouts</a></p>
+  </div>
+  <script>
+    (function(){
+      // Compute the app root: project sites live at /<repo>/..., root sites at /.
+      var segs = location.pathname.split("/").filter(function(s){ return s.length > 0; });
+      var first = segs[0] || "";
+      var isProject = first !== "" && !/\.[a-z0-9]+$/i.test(first);
+      document.getElementById("appLink").href = isProject ? ("/" + first + "/") : "/";
+    })();
+  </script>
+</body>
+</html>
