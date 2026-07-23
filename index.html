@@ -241,6 +241,7 @@
 /* Update banner */
 .wa-update{ display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; background:var(--ink); color:#fff; border:none; text-align:left; padding:12px 16px; font-size:13.5px; font-weight:600; border-radius:12px; margin-bottom:14px; cursor:pointer; }
 .wa-update__go{ flex:none; background:#fff; color:var(--ink); border-radius:999px; padding:6px 14px; font-weight:800; font-size:12.5px; }
+.wa-updrow{ display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:wrap; padding:4px 0 2px; }
 
 /* Diagnostics log */
 .wa-log{ font-family:var(--mono); font-size:11px; background:#0f141b; color:#cfe; border:1px solid var(--line); border-radius:10px; padding:12px; max-height:60vh; overflow:auto; line-height:1.6; white-space:pre-wrap; word-break:break-word; }
@@ -279,14 +280,32 @@ const { useState, useEffect, useRef, useCallback, useMemo } = React;
 /* ============================================================ LOGGING ============================================================ */
 const LOG_CAP = 600;
 const LOG = [];
-const BUILD = "2026-07-22.1";   // keep in lockstep with VERSION in sw.js
+// User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
+// the update prompts, and the footers - a real version, not a build date. Bump it on
+// every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
+const APP_VERSION = "0.5.0";
+// Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
+// it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
+// (it's monotonic, so detection never misfires) and what cache-busts the reload;
+// APP_VERSION above is the friendly label shown to users.
+const BUILD = "2026-07-23.1";
+// Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
+// (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
+// numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
+// Used by the updater so we only offer a genuinely newer deployed build.
+function buildIsNewer(a, b){
+  const parse = s => String(s||"").split(/[-.]/).map(n=>parseInt(n,10)||0);
+  const pa=parse(a), pb=parse(b), len=Math.max(pa.length,pb.length);
+  for(let i=0;i<len;i++){ const x=pa[i]||0, y=pb[i]||0; if(x>y) return true; if(x<y) return false; }
+  return false;
+}
 function log(tag, msg){
   const line = { t: new Date().toISOString().slice(11,19), tag, msg: String(msg) };
   LOG.push(line);
   if (LOG.length > LOG_CAP) LOG.shift();
   try { console.log("[" + tag + "] " + line.msg); } catch(e){}
 }
-log("INIT", "script booting - build " + BUILD);
+log("INIT", "script booting - v"+APP_VERSION+" (build "+BUILD+")");
 
 /* ============================================================ UTILITIES ============================================================ */
 const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,7);
@@ -1079,6 +1098,7 @@ function Diagnostics({ onClose }){
   return (
     <div>
       <div className="wa-drawer__head" style={{marginBottom:12}}><h2>Diagnostics</h2><button className="wa-x" onClick={onClose} aria-label="Back">{"←"}</button></div>
+      <p className="wa-hint" style={{marginBottom:8}}>v{APP_VERSION} (build {BUILD}) - newest at the top, {LOG.length} lines</p>
       <div className="wa-log">
         {LOG.slice().reverse().map((l,i) => (<div key={i}><span className="t">{l.t}</span> <span className={"tag"+(l.tag==="ERROR"?" err":"")}>[{l.tag}]</span> {l.msg}</div>))}
       </div>
@@ -1086,7 +1106,7 @@ function Diagnostics({ onClose }){
   );
 }
 
-function Settings({ store, entities, places, placeOf, onColor, onResetColors, onEditPerson, onAddPerson, onEditPlace, onAddPlace, onEditPlacement, onClose, onCheckUpdate }){
+function Settings({ store, entities, places, placeOf, onColor, onResetColors, onEditPerson, onAddPerson, onEditPlace, onAddPlace, onEditPlacement, onClose, onCheckUpdate, onApplyUpdate, update, updMsg }){
   const [diag, setDiag] = useState(false);
   const people = entities.filter((e) => e.kind === "person");
   const pets = entities.filter((e) => e.kind === "pet");
@@ -1148,13 +1168,20 @@ function Settings({ store, entities, places, placeOf, onColor, onResetColors, on
             </>}
 
             <p className="wa-set__group">App</p>
-            <button className="wa-actrow" onClick={()=>onCheckUpdate && onCheckUpdate(true)}><b>Check for updates</b><span>On build {BUILD}</span></button>
             <button className="wa-actrow" onClick={()=>setDiag(true)}><b>Diagnostics</b><span>View the activity log</span></button>
+
+            <p className="wa-set__group">About</p>
+            <div className="wa-updrow">
+              {update
+                ? <button className="wa-btn wa-btn--primary" style={{margin:0}} onClick={()=>onApplyUpdate && onApplyUpdate()}>Update to v{update.ver||update.build}</button>
+                : <button className="wa-btn" style={{margin:0}} onClick={()=>onCheckUpdate && onCheckUpdate(true)}>Check for updates</button>}
+              {updMsg && <span className="wa-hint" style={{margin:0}}>{updMsg}</span>}
+            </div>
+            <p className="wa-hint" style={{textAlign:"center",marginTop:6}}>Whereabouts v{APP_VERSION}</p>
 
             {CONFIGURED &&
               <button className="wa-btn wa-btn--danger wa-btn--block" style={{marginTop:18}}
                 onClick={()=>{ FILES.forEach(f=>lsDel("cache:"+f)); ["cfg","dirty"].forEach(lsDel); store.signOut().then(()=>location.reload()); }}>Sign out & clear this device</button>}
-            <p className="wa-hint" style={{textAlign:"center",marginTop:14,opacity:.7}}>Whereabouts - build {BUILD}</p>
           </>
         )}
       </div>
@@ -1202,7 +1229,7 @@ function Login({ store, toast }){
       </div>
       <button className="wa-btn wa-btn--block" style={{marginTop:12}} disabled={busy} onClick={()=>{ setErr(""); setMode(isSignup?"signin":"signup"); }}>
         {isSignup ? "Already have an account? Sign in" : "New here? Create an account"}</button>
-      <p className="wa-hint" style={{textAlign:"center",marginTop:16,opacity:.6}}>build {BUILD}</p>
+      <p className="wa-hint" style={{textAlign:"center",marginTop:16,opacity:.6}}>v{APP_VERSION}</p>
     </div>
   );
 }
@@ -1261,25 +1288,50 @@ function App(){
 
   const ctx = useMemo(()=> ({ ...resolver, placeOf, homeOf, placeOrder, onPick }), [resolver, placeOf, homeOf, placeOrder, onPick]);
 
-  // PWA self-update
-  const [update,setUpdate]=useState(null);
-  const checkUpdate = useCallback(async (announce=false)=>{
+  // --- PWA self-update: detect a newer deployed build and offer a one-tap refresh ---
+  // Installed PWAs cache the HTML hard; this fetches the deployed file fresh, reads its
+  // BUILD stamp, and surfaces a banner when a genuinely newer build is live.
+  const [update,setUpdate]=useState(null);   // { ver, build } of a newer deployed build, else null
+  const [updMsg,setUpdMsg]=useState("");     // inline status for the Settings "Check for updates" row
+  const updTimer = useRef(null);
+  // Show a status line for a few seconds then clear it (used for terminal results).
+  const flashUpd = useCallback((msg)=>{ setUpdMsg(msg); if(updTimer.current) clearTimeout(updTimer.current); updTimer.current = setTimeout(()=>setUpdMsg(""), 4000); },[]);
+  // manual=true is the Settings button: show inline "Checking..." then a result. On
+  // launch/resume we check quietly and only surface the banner if there's an update.
+  // Detection compares the deployed BUILD (monotonic date stamp) so it never misfires;
+  // the deployed APP_VERSION is read alongside it purely to LABEL the update ("v0.5.1").
+  const checkUpdate = useCallback(async (manual=false)=>{
+    if(manual){ if(updTimer.current) clearTimeout(updTimer.current); setUpdMsg("Checking..."); }
     try{
       const res = await fetch(location.pathname + "?_=" + Date.now(), { cache:"no-store" });
-      if(!res.ok){ if(announce) toast("Couldn't check for updates"); return; }
+      if(!res.ok){ log("UPDATE","check http "+res.status); if(manual) flashUpd("Couldn't check - are you online?"); return; }
       const html = await res.text();
-      const m = html.match(/const BUILD = "([^"]+)";/);
-      if(m && m[1] && m[1] !== BUILD){ log("UPDATE","new build: "+m[1]); setUpdate(m[1]); }
-      else if(announce) toast("You're on the latest (build "+BUILD+")");
-    }catch(e){ log("UPDATE","check failed: "+e.message); if(announce) toast("Update check failed"); }
-  },[toast]);
+      const mb = html.match(/const BUILD = "([^"]+)";/);       const rBuild = mb && mb[1];
+      const mv = html.match(/const APP_VERSION = "([^"]+)";/); const rVer = mv && mv[1];
+      if(rBuild && buildIsNewer(rBuild, BUILD)){ log("UPDATE","newer build live: "+rBuild+" (v"+(rVer||"?")+")"); setUpdate({ ver:rVer, build:rBuild }); if(manual) setUpdMsg(""); }
+      else { log("UPDATE","up to date (v"+APP_VERSION+", "+BUILD+")"); setUpdate(null); if(manual) flashUpd("You're on the latest (v"+APP_VERSION+")"); }
+    }catch(e){ log("UPDATE","check failed: "+e.message); if(manual) flashUpd("Update check failed"); }
+  },[flashUpd]);
+  // Check on launch AND on resume AND on a periodic timer - installed PWAs are usually
+  // RESUMED from the background, not cold-launched, so a launch-only check means the
+  // banner rarely surfaces on its own. Debounced so a burst of resumes only refetches once.
   useEffect(()=>{
-    checkUpdate();
-    const onVis = ()=>{ if(document.visibilityState==="visible") checkUpdate(); };
+    let last=0; const GAP=60*1000;
+    const maybe=()=>{ const now=Date.now(); if(now-last<GAP) return; last=now; checkUpdate(false); };
+    const t=setTimeout(maybe, 1200);                       // initial launch check
+    const onVis=()=>{ if(document.visibilityState==="visible") maybe(); };
     document.addEventListener("visibilitychange", onVis);
-    return ()=>document.removeEventListener("visibilitychange", onVis);
+    const iv=setInterval(maybe, 20*60*1000);               // periodic while open
+    return ()=>{ clearTimeout(t); clearInterval(iv); document.removeEventListener("visibilitychange", onVis); };
   },[checkUpdate]);
-  function applyUpdate(){ window.location.replace(location.pathname + "?u=" + encodeURIComponent(update||String(Date.now()))); }
+  // Apply by navigating to a build-stamped URL so iOS can't serve the cached HTML.
+  // Wipe the SW caches first so the new build can never be masked by a cached shell.
+  function applyUpdate(){
+    const stamp=(update&&update.build)||String(Date.now());
+    log("UPDATE","applying -> "+stamp);
+    try{ if(navigator.serviceWorker && navigator.serviceWorker.controller) navigator.serviceWorker.controller.postMessage("clearCache"); }catch(_){}
+    window.location.replace(location.pathname + "?u=" + encodeURIComponent(stamp));
+  }
 
   const setColor = (id, color) => store.upsert("entities", { id, color });
   const resetColors = () => entities.forEach(e => { if(DEFAULT_COLOR[e.id]) store.upsert("entities", { id:e.id, color:DEFAULT_COLOR[e.id] }); });
@@ -1316,7 +1368,8 @@ function App(){
     <div className="wa-root">
       {update &&
         <button className="wa-update" onClick={applyUpdate}>
-          <span>Update available - tap to refresh (build {update})</span><span className="wa-update__go">Refresh</span>
+          <span>Update available <b>(v{update.ver||update.build})</b></span>
+          <span className="wa-update__go">Refresh</span>
         </button>}
 
       <header className="wa-top">
@@ -1359,7 +1412,7 @@ function App(){
         onEditPerson={(e)=>setPersonEdit(e)} onAddPerson={()=>setPersonEdit({ order: nextOrder(entities) })}
         onEditPlace={(p)=>setPlaceEdit(p)} onAddPlace={()=>setPlaceEdit({ order: nextOrder(places) })}
         onEditPlacement={(p)=>{ setSettingsOpen(false); setPlaceSheet({ seed:p }); }}
-        onClose={()=>setSettingsOpen(false)} onCheckUpdate={checkUpdate} />}
+        onClose={()=>setSettingsOpen(false)} onCheckUpdate={checkUpdate} onApplyUpdate={applyUpdate} update={update} updMsg={updMsg} />}
 
       {placeSheet && <PlacementSheet entities={entities} places={places} store={store} seed={placeSheet.seed} toast={toast} onClose={()=>setPlaceSheet(null)} />}
       {personEdit && <PersonEditor entity={personEdit} places={places} store={store} toast={toast} onClose={()=>setPersonEdit(null)} />}
