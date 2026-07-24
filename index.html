@@ -225,6 +225,14 @@
 .wa-prow__txt{ flex:1; min-width:0; font-size:13px; }
 .wa-prow__sub{ font-size:11px; color:var(--muted); margin-top:1px; }
 .wa-prow__del{ border:none; background:none; color:var(--muted); cursor:pointer; font-size:18px; flex:none; }
+/* swipe-to-delete on list rows (portfolio standard, ported from Tracker) */
+.swipe-wrap{ position:relative; overflow:hidden; border-radius:10px; }
+.swipe-wrap--card{ margin-top:8px; }
+.swipe-wrap--card .wa-prow{ margin-top:0; }
+.swipe-del{ position:absolute; top:0; right:0; bottom:0; width:88px; border:none; background:#B3402F; color:#fff; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; font-size:12px; font-weight:700; font-family:var(--body); }
+.swipe-del svg{ width:18px; height:18px; stroke:#fff; stroke-width:2; fill:none; }
+.swipe-body{ position:relative; background:var(--surface); touch-action:pan-y; will-change:transform; }
 
 /* Modal sheet (centered, works on tablet + phone) */
 .wa-modalscrim{ position:fixed; inset:0; background:rgba(25,33,43,.42); z-index:55; display:flex; align-items:flex-start; justify-content:center; padding:24px 16px; overflow-y:auto; }
@@ -256,6 +264,8 @@
 
 /* Toast */
 .wa-toast{ position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; padding:9px 16px; border-radius:999px; font-size:13.5px; z-index:70; box-shadow:0 8px 24px rgba(25,33,43,.3); }
+.wa-toast--bar{ display:flex; align-items:center; gap:14px; max-width:min(440px,92vw); white-space:nowrap; }
+.wa-toast__act{ flex:none; border:none; background:#fff; color:var(--ink); border-radius:999px; padding:6px 14px; font-size:12.5px; font-weight:800; font-family:var(--body); cursor:pointer; }
 
 @keyframes wa-pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
 @keyframes wa-slide{ from{ transform:translateX(20px); opacity:.6; } to{ transform:none; opacity:1; } }
@@ -283,12 +293,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.5.0";
+const APP_VERSION = "0.5.1";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-07-23.1";
+const BUILD = "2026-07-23.2";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -658,8 +668,19 @@ function useStore(){
     log("SAVE", file+" delete "+id); pushDirty();
   }, [markDirty, pushDirty]);
 
+  // Re-insert a previously-removed item exactly as it was (keeps id + order, so it
+  // returns to its original spot). Used by Undo after a swipe-delete.
+  const restore = useCallback((file, item) => {
+    const cur = dataRef.current[file] || [];
+    if(cur.some(x => x.id === item.id)){ log("SAVE","restore skipped, "+file+" "+item.id+" already present"); return; }
+    const next = [...cur, item];
+    const nd = { ...dataRef.current, [file]:next }; dataRef.current = nd; setData(nd);
+    markDirty(file, next);
+    log("SAVE", file+" restore "+item.id); pushDirty();
+  }, [markDirty, pushDirty]);
+
   return { cfg, saveCfg, data, sync, syncMsg, online, dirty, authed, authEmail, authReady,
-           signIn, signUp, signOut, pull, pushDirty, upsert, seedMany, remove, setSync };
+           signIn, signUp, signOut, pull, pushDirty, upsert, seedMany, remove, restore, setSync };
 }
 
 /* ============================================================ TOKENS ============================================================ */
@@ -1093,6 +1114,36 @@ function PlaceEditor({ place, store, onClose, toast }){
   );
 }
 
+/* ============================================================ SWIPE ROW ============================================================ */
+/* Swipe a row left to reveal a Delete action (portfolio standard, ported from
+   Tracker). Horizontal-only, so vertical scroll is unaffected; a swipe
+   suppresses the row's open-on-tap. */
+const TRASH_ICON = (
+  <svg viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2m3 0-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" strokeLinecap="round" strokeLinejoin="round"/></svg>
+);
+function SwipeRow({ onDelete, className, children }){
+  const [dx,setDx] = useState(0);
+  const st = useRef(null); const moved = useRef(false);
+  function down(e){ st.current = { x:e.clientX, y:e.clientY, base:dx }; moved.current = false; try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(_){} }
+  function move(e){
+    if(!st.current) return;
+    const ddx = e.clientX - st.current.x, ddy = e.clientY - st.current.y;
+    if(Math.abs(ddx) > 8 && Math.abs(ddx) > Math.abs(ddy)) moved.current = true;
+    if(moved.current){ setDx(Math.max(-96, Math.min(0, st.current.base + ddx))); }
+  }
+  function end(){ if(!st.current) return; st.current = null; setDx(d => { const nd = d <= -48 ? -84 : 0; if(nd===0) moved.current = false; return nd; }); }
+  function clickCapture(e){ if(moved.current || dx !== 0){ e.stopPropagation(); e.preventDefault(); moved.current = false; setDx(0); } }
+  return (
+    <div className={"swipe-wrap"+(className?" "+className:"")}>
+      <button className="swipe-del" onClick={(e)=>{ e.stopPropagation(); setDx(0); onDelete(); }}>{TRASH_ICON}<span>Delete</span></button>
+      <div className="swipe-body" style={{ transform:`translateX(${dx}px)`, transition: st.current ? "none" : "transform .18s" }}
+        onPointerDown={down} onPointerMove={move} onPointerUp={end} onPointerCancel={end} onClickCapture={clickCapture}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 /* ============================================================ SETTINGS ============================================================ */
 function Diagnostics({ onClose }){
   return (
@@ -1106,18 +1157,24 @@ function Diagnostics({ onClose }){
   );
 }
 
-function Settings({ store, entities, places, placeOf, onColor, onResetColors, onEditPerson, onAddPerson, onEditPlace, onAddPlace, onEditPlacement, onClose, onCheckUpdate, onApplyUpdate, update, updMsg }){
+function Settings({ store, entities, places, placeOf, onColor, onResetColors, onEditPerson, onAddPerson, onEditPlace, onAddPlace, onEditPlacement, onDeleteRow, onClose, onCheckUpdate, onApplyUpdate, update, updMsg }){
   const [diag, setDiag] = useState(false);
   const people = entities.filter((e) => e.kind === "person");
   const pets = entities.filter((e) => e.kind === "pet");
   const placements = store.data.placements || [];
 
+  // Deleting a person or pet is heavy (their pins/trips/journeys stop rendering),
+  // so the swipe still asks before it deletes - and the undo toast backs that up.
   const PersonRow = (e) => (
-    <div key={e.id} className="wa-set__row">
-      <Token entity={e} size={28} />
-      <button className="wa-set__name" onClick={()=>onEditPerson(e)}>{e.name}<small>home: {placeOf(e.home).name}</small></button>
-      <input type="color" value={e.color} onChange={(ev)=>onColor(e.id, ev.target.value)} className="wa-set__color" title="Quick color" />
-    </div>
+    <SwipeRow key={e.id} onDelete={()=>{
+      if(window.confirm("Delete "+e.name+" from the family? Their pins, trips and journeys will stop showing on the calendar.")) onDeleteRow("entities", e, e.name);
+    }}>
+      <div className="wa-set__row">
+        <Token entity={e} size={28} />
+        <button className="wa-set__name" onClick={()=>onEditPerson(e)}>{e.name}<small>home: {placeOf(e.home).name}</small></button>
+        <input type="color" value={e.color} onChange={(ev)=>onColor(e.id, ev.target.value)} className="wa-set__color" title="Quick color" />
+      </div>
+    </SwipeRow>
   );
   const placementLabel = (p) => {
     if(p.type==="journey") return { txt: firstName((entities.find(e=>e.id===p.entityId)||{}).name||p.entityId), sub:`${placeOf(p.from).name} → ${placeOf(p.to).name} · ${fmtYmd(p.date)}` };
@@ -1142,9 +1199,11 @@ function Settings({ store, entities, places, placeOf, onColor, onResetColors, on
 
             <p className="wa-set__group">Places</p>
             {places.map(p => (
-              <div key={p.id} className="wa-set__row">
-                <button className="wa-set__name" onClick={()=>onEditPlace(p)}>{p.name}<small>{p.kind}{p.full?" · "+p.full:""}</small></button>
-              </div>
+              <SwipeRow key={p.id} onDelete={()=>onDeleteRow("places", p, p.name)}>
+                <div className="wa-set__row">
+                  <button className="wa-set__name" onClick={()=>onEditPlace(p)}>{p.name}<small>{p.kind}{p.full?" · "+p.full:""}</small></button>
+                </div>
+              </SwipeRow>
             ))}
             <button className="wa-addrow" onClick={onAddPlace}>+ Add place</button>
 
@@ -1153,11 +1212,12 @@ function Settings({ store, entities, places, placeOf, onColor, onResetColors, on
             {placements.map(p => {
               const L = placementLabel(p);
               return (
-                <div key={p.id} className="wa-prow">
-                  <div className="wa-prow__txt"><b>{L.txt}</b> <span style={{color:"var(--muted)",textTransform:"capitalize"}}>{p.type}</span><div className="wa-prow__sub">{L.sub}</div></div>
-                  <button className="wa-prow__del" onClick={()=>onEditPlacement(p)} title="Edit">{"✎"}</button>
-                  <button className="wa-prow__del" onClick={()=>{ store.remove("placements", p.id); }} title="Remove">{"×"}</button>
-                </div>
+                <SwipeRow key={p.id} className="swipe-wrap--card" onDelete={()=>onDeleteRow("placements", p, (L.txt?L.txt+" ":"")+p.type)}>
+                  <div className="wa-prow">
+                    <div className="wa-prow__txt"><b>{L.txt}</b> <span style={{color:"var(--muted)",textTransform:"capitalize"}}>{p.type}</span><div className="wa-prow__sub">{L.sub}</div></div>
+                    <button className="wa-prow__del" onClick={()=>onEditPlacement(p)} title="Edit">{"✎"}</button>
+                  </div>
+                </SwipeRow>
               );
             })}
 
@@ -1246,9 +1306,15 @@ function App(){
   const [placeSheet,setPlaceSheet]=useState(null);   // { seed } | null
   const [personEdit,setPersonEdit]=useState(null);   // entity | {} | null
   const [placeEdit,setPlaceEdit]=useState(null);     // place | {} | null
-  const [toastObj,setToastObj]=useState(null);
+  const [toastObj,setToastObj]=useState(null);   // { msg, label?, fn? }
   const toastRef = useRef();
-  const toast = useCallback((m)=>{ setToastObj(m); clearTimeout(toastRef.current); toastRef.current=setTimeout(()=>setToastObj(null),2400); },[]);
+  const toast = useCallback((m)=>{ setToastObj({msg:m}); clearTimeout(toastRef.current); toastRef.current=setTimeout(()=>setToastObj(null),2400); },[]);
+  const toastUndo = useCallback((m, fn)=>{ setToastObj({msg:m, label:"Undo", fn}); clearTimeout(toastRef.current); toastRef.current=setTimeout(()=>setToastObj(null),6000); },[]);
+  // Swipe-delete routes through here so every deletion offers a few seconds to undo.
+  const deleteWithUndo = useCallback((file, item, what)=>{
+    store.remove(file, item.id);
+    toastUndo("Deleted "+(what||item.name||"item"), ()=>store.restore(file, item));
+  },[store.remove, store.restore, toastUndo]);
 
   useEffect(()=>{ const id=setInterval(()=>setTick(t=>t+1),60000); return ()=>clearInterval(id); },[]);
 
@@ -1359,9 +1425,17 @@ function App(){
   };
   const goToday = () => setCursor(new Date());
 
+  // One toast node for both the login and main renders; shows an Undo button when armed.
+  const toastNode = toastObj && (
+    <div className={"wa-toast"+(toastObj.fn?" wa-toast--bar":"")}>
+      <span>{toastObj.msg}</span>
+      {toastObj.fn && <button className="wa-toast__act" onClick={()=>{ toastObj.fn(); clearTimeout(toastRef.current); setToastObj(null); }}>{toastObj.label||"Undo"}</button>}
+    </div>
+  );
+
   if(!store.authReady) return <div className="wa-root"><p className="wa-hint" style={{textAlign:"center",marginTop:90}}>Loading...</p></div>;
   if(CONFIGURED && !store.authed) return (
-    <div className="wa-root"><Login store={store} toast={toast}/>{toastObj && <div className="wa-toast">{toastObj}</div>}</div>
+    <div className="wa-root"><Login store={store} toast={toast}/>{toastNode}</div>
   );
 
   return (
@@ -1412,13 +1486,14 @@ function App(){
         onEditPerson={(e)=>setPersonEdit(e)} onAddPerson={()=>setPersonEdit({ order: nextOrder(entities) })}
         onEditPlace={(p)=>setPlaceEdit(p)} onAddPlace={()=>setPlaceEdit({ order: nextOrder(places) })}
         onEditPlacement={(p)=>{ setSettingsOpen(false); setPlaceSheet({ seed:p }); }}
+        onDeleteRow={deleteWithUndo}
         onClose={()=>setSettingsOpen(false)} onCheckUpdate={checkUpdate} onApplyUpdate={applyUpdate} update={update} updMsg={updMsg} />}
 
       {placeSheet && <PlacementSheet entities={entities} places={places} store={store} seed={placeSheet.seed} toast={toast} onClose={()=>setPlaceSheet(null)} />}
       {personEdit && <PersonEditor entity={personEdit} places={places} store={store} toast={toast} onClose={()=>setPersonEdit(null)} />}
       {placeEdit && <PlaceEditor place={placeEdit} store={store} toast={toast} onClose={()=>setPlaceEdit(null)} />}
 
-      {toastObj && <div className="wa-toast">{toastObj}</div>}
+      {toastNode}
     </div>
   );
 }
