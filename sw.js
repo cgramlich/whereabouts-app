@@ -25,7 +25,7 @@
    - everything else -> default network
 */
 
-const VERSION = "2026-08-01.1";                 // keep in lockstep with BUILD in index.html
+const VERSION = "2026-08-01.2";                 // keep in lockstep with BUILD in index.html
 const SHELL_CACHE = "wa-shell-" + VERSION;
 const ASSET_CACHE = "wa-assets-" + VERSION;
 const DATA_CACHE  = "wa-data-v1";               // user collections; UN-versioned so it
@@ -36,8 +36,10 @@ const SHELL_URL = new URL("./", self.location).pathname;   // the app root (dir 
 // Primed on install so even the very first offline open works.
 // The cdnjs libs are Requests with SRI (integrity) + CORS mode, mirroring the
 // <script> tags in index.html - a tampered CDN response fails the hash check
-// and is skipped (Promise.allSettled) instead of being cached. The supabase-js
-// URL is unpinned (@2 floats), so it cannot carry a stable hash.
+// and is skipped (Promise.allSettled) instead of being cached. supabase-js was
+// the last floating tag ("@2"); it is now pinned to 2.111.0 and carries SRI too,
+// so every pre-cached CDN dep is hash-verified. Hashes are per-file-version -
+// recompute on any lib upgrade, here AND in the index.html <script> tag.
 const CRITICAL_ASSETS = [
   new Request("https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js", {
     integrity: "sha384-tMH8h3BGESGckSAVGZ82T9n90ztNXxvdwvdM6UoR56cYcf+0iGXBliJ29D+wZ/x8",
@@ -51,7 +53,10 @@ const CRITICAL_ASSETS = [
     integrity: "sha384-1qlE7MZPM2pHD/pBZCU/yB8UCP52RYL8bge/qNdfNBCWToySp8/M+JL2waXU4hjJ",
     mode: "cors",
   }),
-  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2",
+  new Request("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.111.0/dist/umd/supabase.js", {
+    integrity: "sha384-faMlYZUtkJj+Sh6Bmu/L0GzPcraRWN6CW+9RH3GUrK/Z0WS9tgaNNt0tHiLxsbdb",
+    mode: "cors",
+  }),
   new URL("icon-192.png", self.location).href,
   new URL("icon-512.png", self.location).href,
 ];
