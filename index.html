@@ -293,12 +293,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.5.3";
+const APP_VERSION = "0.6.0";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-07-28.1";
+const BUILD = "2026-08-01.1";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -493,9 +493,9 @@ const lsDel = (k) => { try { localStorage.removeItem(NS+k); } catch(e){} };
 const FILES = ["entities","places","placements"];
 
 /* ============================================================ BACKEND + AUTH CONFIG ============================================================ */
-const SUPABASE_URL = "https://YOUR-PROJECT.supabase.co";        // TODO: Whereabouts Supabase project URL
-const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY";             // TODO: Whereabouts anon (public) key
-const API_BASE = "https://YOUR-RAILWAY-APP.up.railway.app";     // TODO: whereabouts-backend Railway URL
+const SUPABASE_URL = "https://ztdicgvotbvmayzmwnio.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGljZ3ZvdGJ2bWF5em13bmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1NTI2MTIsImV4cCI6MjEwMTEyODYxMn0.DKgSm_EWf_ht2t0R3c41gfjeLbtpPvORpp_QJVIyEWk";
+const API_BASE = "https://web-production-481fa.up.railway.app";
 const CONFIGURED = !SUPABASE_URL.includes("YOUR-") && !SUPABASE_ANON_KEY.includes("YOUR_") && !API_BASE.includes("YOUR-");
 
 const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
