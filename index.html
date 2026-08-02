@@ -303,12 +303,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.6.1";
+const APP_VERSION = "0.6.2";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.2";
+const BUILD = "2026-08-01.3";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -699,8 +699,26 @@ function useStore(){
     log("SAVE", file+" restore "+item.id); pushDirty();
   }, [markDirty, pushDirty]);
 
+  // Discard this device's local copy and re-pull the cloud as authoritative.
+  // WHY: collections sync WHOLESALE (a PUT replaces the collection and deletes
+  // rows not in the payload). So when data is loaded straight into Postgres
+  // (an admin/SQL load), a stale-but-dirty local copy would push back and wipe
+  // it. Clearing the cache + dirty flags first makes the next pull win, without
+  // touching the session - this replaces the old "sign out to force a refresh"
+  // dance. Local unsynced edits ARE discarded, so the UI confirms first.
+  const reloadFromCloud = useCallback(async () => {
+    log("SYNC", "reloadFromCloud - discarding local cache, pulling fresh");
+    FILES.forEach(f => lsDel("cache:" + f));
+    const cleared = {}; FILES.forEach(f => cleared[f] = false);
+    dirtyRef.current = cleared; setDirty(cleared); lsSet("dirty", cleared);
+    const emptied = {}; FILES.forEach(f => emptied[f] = []);
+    dataRef.current = emptied; setData(emptied);
+    await pull();
+  }, [pull]);
+
   return { cfg, saveCfg, data, sync, syncMsg, online, dirty, authed, authEmail, authReady,
-           signIn, signUp, signOut, pull, pushDirty, upsert, seedMany, remove, restore, setSync };
+           signIn, signUp, signOut, pull, pushDirty, upsert, seedMany, remove, restore,
+           reloadFromCloud, setSync };
 }
 
 /* ============================================================ TOKENS ============================================================ */
@@ -1185,6 +1203,7 @@ function Diagnostics({ onClose }){
 
 function Settings({ store, entities, places, placeOf, onColor, onResetColors, onEditPerson, onAddPerson, onEditPlace, onAddPlace, onEditPlacement, onDeleteRow, onClose, onCheckUpdate, onApplyUpdate, update, updMsg }){
   const [diag, setDiag] = useState(false);
+  const [confirmReload, setConfirmReload] = useState(false);
   const people = entities.filter((e) => e.kind === "person");
   const pets = entities.filter((e) => e.kind === "pet");
   const placements = store.data.placements || [];
@@ -1251,6 +1270,19 @@ function Settings({ store, entities, places, placeOf, onColor, onResetColors, on
               <p className="wa-set__group">Family account</p>
               <div className="wa-set__row"><b>Signed in</b><span style={{marginLeft:"auto",color:"var(--muted)",fontSize:13}}>{store.authEmail||"-"}</span></div>
               <button className="wa-actrow" onClick={()=>store.pull()}><b>Force sync now</b><span>Pull from the backend</span></button>
+              {/* Replaces the old "sign out to force a refresh" workaround: makes the
+                  cloud authoritative after data is loaded straight into the database. */}
+              {!confirmReload
+                ? <button className="wa-actrow" onClick={()=>setConfirmReload(true)}>
+                    <b>Reload from cloud</b><span>Replace this device's copy</span></button>
+                : <div className="wa-set__row" style={{flexWrap:"wrap"}}>
+                    <span className="wa-hint" style={{flex:"1 1 100%",marginBottom:8}}>
+                      Discard this device's copy and pull the latest from the cloud?
+                      Any change here that hasn't synced yet will be lost.</span>
+                    <button className="wa-btn" style={{flex:1}} onClick={()=>setConfirmReload(false)}>Cancel</button>
+                    <button className="wa-btn wa-btn--primary" style={{flex:1}}
+                      onClick={()=>{ setConfirmReload(false); store.reloadFromCloud(); onClose(); }}>Reload</button>
+                  </div>}
             </>}
 
             <p className="wa-set__group">App</p>

@@ -25,7 +25,7 @@
    - everything else -> default network
 */
 
-const VERSION = "2026-08-01.2";                 // keep in lockstep with BUILD in index.html
+const VERSION = "2026-08-01.3";                 // keep in lockstep with BUILD in index.html
 const SHELL_CACHE = "wa-shell-" + VERSION;
 const ASSET_CACHE = "wa-assets-" + VERSION;
 const DATA_CACHE  = "wa-data-v1";               // user collections; UN-versioned so it
