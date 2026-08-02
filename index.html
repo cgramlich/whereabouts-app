@@ -429,7 +429,9 @@ function rulePlace(entityId, date){
       return h>=9 && h<17 ? "office" : "dallas";
     case "cjr":     return "dallas";
     case "hank":    return "boston";
-    case "molly":   return isTerm(date) ? "auburn" : "sanantonio";
+    // Molly's default is Auburn (school). Breaks + summer are entered as real
+    // date-range placements (Dallas), which override this rule.
+    case "molly":   return "auburn";
     case "samuel":
     case "bellarose":
     case "gracieann":
