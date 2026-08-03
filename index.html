@@ -232,6 +232,11 @@
   font-weight:600; font-size:12.5px; padding:6px 14px; border-radius:7px; cursor:pointer; }
 .wa-storytoggle button.is-on{ background:var(--ink); color:#fff; }
 
+/* Routine editor - a day-override row */
+.wa-dayov{ display:grid; grid-template-columns:1fr 1.2fr .9fr .9fr 1.2fr auto; gap:5px;
+  align-items:center; margin-bottom:6px; }
+.wa-dayov .wa-select{ padding:7px 8px; font-size:12.5px; }
+
 /* Month strips - one ribbon per person, ink only on away days */
 .wa-strips{ background:var(--surface); border:1px solid var(--line); border-radius:16px;
   padding:14px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
@@ -361,12 +366,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.10.2";
+const APP_VERSION = "0.11.0";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.12";
+const BUILD = "2026-08-01.13";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -441,7 +446,31 @@ const SEED_ROSTER = [
   { id:"graham",    name:"Graham",    short:"Gh", kind:"pet",    color:"#7C4A2D" },
   { id:"lola",      name:"Lola",      short:"Lo", kind:"pet",    color:"#FFFFFF" },
 ];
-const SEED_ENTITIES = SEED_ROSTER.map((e, i) => ({ ...e, home: HOME_OF[e.id] || "sanantonio", order: i }));
+// The routines the app shipped with, so migrating an existing family reproduces
+// exactly what the old hardcoded rules did. Must be declared BEFORE SEED_ENTITIES,
+// which reads it (const has no hoisting - referencing it earlier throws).
+const SEED_ROUTINE = {
+  chris:     { base:"sanantonio", days:{ "2":{place:"dallas",from:10,to:24,outside:"sanantonio"},
+                                          "3":{place:"office",from:8,to:18,outside:"dallas"},
+                                          "4":{place:"dallas",from:0,to:10,outside:"sanantonio"} } },
+  kristin:   { base:"sanantonio" },
+  jenna:     { base:"austin" },
+  cjr:       { base:"dallas" },
+  samuel:    { base:"dallas" },
+  hank:      { base:"boston" },
+  molly:     { base:"auburn" },
+  bellarose: { base:"sanantonio" },
+  gracieann: { base:"sanantonio" },
+  sophia:    { base:"sanantonio" },
+  gus:       { base:"sanantonio", follows:{ entityId:"chris", fallback:"dallas" } },
+  graham:    { base:"sanantonio", follows:{ entityId:"chris", fallback:"dallas" } },
+  lola:      { base:"sanantonio" },
+};
+
+const SEED_ENTITIES = SEED_ROSTER.map((e, i) => ({
+  ...e, home: HOME_OF[e.id] || "sanantonio", order: i,
+  routine: SEED_ROUTINE[e.id] || { base: HOME_OF[e.id] || "sanantonio" },
+}));
 
 const SEED_PLACE_LIST = [
   { id:"sanantonio",  name:"San Antonio", full:"Spring Branch · San Antonio area", kind:"metro" },
@@ -515,6 +544,61 @@ function rulePlace(entityId, date){
   }
 }
 
+/* ============================================================
+   ROUTINES AS DATA (slice 3b)
+   A person's recurring pattern lives on their entity record, so it is EDITABLE
+   in the app instead of being a switch statement in this file:
+     routine = {
+       base: placeId,                       // "usually in ___"
+       days: { "2": { place, from, to, outside } },   // 0=Sun .. 6=Sat
+       follows: { entityId, fallback }      // pets: be with someone, else fallback
+     }
+     custody = { place, pattern, anchor }   // "alt-weekends" | "week-on-off"
+   Entities saved before this existed have no `routine`; they fall back to the
+   legacy rulePlace switch so nothing changes until they are migrated.
+   ============================================================ */
+const WEEKDAY_KEYS = ["0","1","2","3","4","5","6"];
+
+function evalRoutine(ent, date, resolveFollowed){
+  const r = ent && ent.routine;
+  if(!r) return null;                                   // -> caller uses legacy
+  if(r.follows && r.follows.entityId){
+    const p = resolveFollowed(r.follows.entityId, date);
+    const fb = r.follows.fallback || ent.home;
+    // Be with them where you can be (your own home, or the fallback); the office
+    // and a trip abroad are no place for a dog, so those land on the fallback.
+    return (p === ent.home || p === fb) ? p : fb;
+  }
+  const ov = r.days && r.days[String(date.getDay())];
+  if(ov && ov.place){
+    const from = (ov.from == null) ? 0 : ov.from;
+    const to   = (ov.to   == null) ? 24 : ov.to;
+    const h = date.getHours();
+    if(h >= from && h < to) return ov.place;
+    return ov.outside || r.base || ent.home;
+  }
+  return r.base || ent.home;
+}
+
+function evalCustody(ent, date){
+  const c = ent && ent.custody;
+  if(!c || !c.place || !c.pattern || c.pattern === "none") return null;
+  const day = date.getDay();
+  const anchor = c.anchor ? parseYmd(c.anchor) : new Date(date.getFullYear(), 0, 1);
+  const weeks = Math.floor((date - anchor) / (7*86400000));
+  if(c.pattern === "alt-weekends"){
+    if(day !== 0 && day !== 6) return null;
+    return (((weeks % 2) + 2) % 2 === 0) ? c.place : null;
+  }
+  if(c.pattern === "week-on-off"){
+    return (((weeks % 2) + 2) % 2 === 0) ? c.place : null;
+  }
+  return null;
+}
+
+// The routines the app shipped with, so migrating an existing family reproduces
+// exactly what the old hardcoded rules did.
+
 // Where the ROUTINE alone would put someone - rules and custody only, ignoring
 // pins, trips and journeys. Comparing this against the real placement is what
 // separates "at school / at the office, as always" from "actually somewhere
@@ -534,7 +618,9 @@ function routineAt(entityId, date){
 // whole placements array three times per call, and dayPlacement probes 11 hours -
 // so a single Year render (13 entities x 42 cells x 12 months) cost roughly
 // 216,000 array scans. Build this ONCE per placements change, never in a render.
-function makeResolver(placements, homeOf){
+// `entById` carries each person's EDITABLE routine/custody; entities saved before
+// slice 3b have none, and fall back to the legacy rulePlace switch.
+function makeResolver(placements, homeOf, entById){
   const list = placements || [];
   const byEntity = {};                 // entityId -> { pins:{ymd:place}, journeys:{ymd:j}, trips:[] }
   const allTrips = [];
@@ -574,21 +660,30 @@ function makeResolver(placements, homeOf){
     const key = ymdNum(date);
     return allTrips.some(t => key >= strToYmd(t.start) && key <= strToYmd(t.end));
   }
+  const ents = entById || {};
+
+  // The recurring layer: the person's own editable routine if they have one,
+  // otherwise the legacy hardcoded rule. A `follows` routine resolves against the
+  // followed person's REAL placement, so the dogs land in Dallas when Chris is
+  // away on a trip, not just when his routine says Dallas.
+  function recurringAt(entityId, date){
+    const ent = ents[entityId];
+    const cust = evalCustody(ent, date); if(cust) return cust;
+    const viaRoutine = evalRoutine(ent, date, (id, d) => placementAt(id, d));
+    if(viaRoutine) return viaRoutine;
+    const legacyCust = custodyPlace(entityId, date); if(legacyCust) return legacyCust;
+    if(entityId === "gus" || entityId === "graham"){
+      return placementAt("chris", date) === "sanantonio" ? "sanantonio" : "dallas";
+    }
+    return rulePlace(entityId, date);
+  }
+
   function placementAt(entityId, date){
     const h = date.getHours();
     const jr = journeyOf(entityId, date); if(jr) return h < 14 ? jr.from : jr.to;
     const pin = pinPlace(entityId, date); if(pin) return pin;
     const trip = tripPlace(entityId, date); if(trip) return trip;
-    const cust = custodyPlace(entityId, date); if(cust) return cust;
-    // Gus + Graham travel with Chris: they're with him when he's in San Antonio,
-    // and in Dallas otherwise - including when he's at the office (the office is
-    // no place for a dog) and when he's away on a trip. Resolved HERE rather than
-    // in rulePlace so it sees his real placement, trips included. Any explicit pin
-    // or trip for a dog is handled above and still wins.
-    if(entityId === "gus" || entityId === "graham"){
-      return placementAt("chris", date) === "sanantonio" ? "sanantonio" : "dallas";
-    }
-    return rulePlace(entityId, date);
+    return recurringAt(entityId, date);
   }
   // Memoized: each (entity, day) is computed once for the life of this resolver.
   // The resolver is rebuilt whenever placements or home bases change, so the cache
@@ -617,6 +712,18 @@ function makeResolver(placements, homeOf){
     return best;
   }
 
+  // Routine-only resolution (no pins/trips/journeys), used to decide whether the
+  // real placement is "expected" or "unusual". Mirrors recurringAt but the
+  // `follows` lookup resolves against the followed person's ROUTINE, so the dogs'
+  // routine is "with Chris as usual" rather than "wherever his trip took him".
+  function routineOnly(entityId, date){
+    const ent = ents[entityId];
+    const cust = evalCustody(ent, date); if(cust) return cust;
+    const viaRoutine = evalRoutine(ent, date, (id, d) => routineOnly(id, d));
+    if(viaRoutine) return viaRoutine;
+    return routineAt(entityId, date);                  // legacy path
+  }
+
   // The routine's headline place for a day, same aggregation as dayPlacement.
   const routineCache = new Map();
   function dayRoutine(entityId, date){
@@ -626,11 +733,11 @@ function makeResolver(placements, homeOf){
     const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
     const counts = {};
     for(let h=8; h<=18; h++){
-      const loc = routineAt(entityId, new Date(y, m, d, h));
+      const loc = routineOnly(entityId, new Date(y, m, d, h));
       counts[loc] = (counts[loc]||0) + 1;
     }
     const home = homeOf[entityId];
-    let best = routineAt(entityId, new Date(y, m, d, 12));
+    let best = routineOnly(entityId, new Date(y, m, d, 12));
     let bestN = -1;
     for(const [loc,n] of Object.entries(counts)){
       const weight = loc===home ? n*0.5 : n;
@@ -654,7 +761,7 @@ function makeResolver(placements, homeOf){
   function stateAt(entityId, date){
     const actual = placementAt(entityId, date);
     if(actual === homeOf[entityId]) return "home";
-    return actual === routineAt(entityId, date) ? "expected" : "unusual";
+    return actual === routineOnly(entityId, date) ? "expected" : "unusual";
   }
 
   // Split a day's roster into the two away buckets, in roster order.
@@ -1300,12 +1407,38 @@ function PersonEditor({ entity, places, store, onClose, toast }){
   const [kind,setKind]=useState(t.kind||"person");
   const [color,setColor]=useState(t.color||"#1E40AF");
   const [home,setHome]=useState(t.home || (places[0]?places[0].id:"sanantonio"));
+  // --- the recurring routine (slice 3b): editable instead of hardcoded ---
+  const r0 = t.routine || {};
+  const [base,setBase]=useState(r0.base || t.home || (places[0]?places[0].id:"sanantonio"));
+  const [dayOv,setDayOv]=useState(()=> Object.entries(r0.days||{})
+      .map(([d,v]) => ({ d:Number(d), place:v.place, from:v.from==null?0:v.from, to:v.to==null?24:v.to, outside:v.outside||"" })));
+  const [followId,setFollowId]=useState((r0.follows&&r0.follows.entityId)||"");
+  const [followFb,setFollowFb]=useState((r0.follows&&r0.follows.fallback)||"");
+  const c0 = t.custody || {};
+  const [cusPattern,setCusPattern]=useState(c0.pattern||"none");
+  const [cusPlace,setCusPlace]=useState(c0.place||"");
+  const [cusAnchor,setCusAnchor]=useState(c0.anchor||ymd(new Date()));
+  const others = (store.data.entities||[]).filter(e => e.id !== t.id);
+
   function save(){
     if(!name.trim()){ toast("Name it first"); return; }
     const s = ((short||name.slice(0,2)).trim()||name.slice(0,2)).slice(0,2);
-    store.upsert("entities", { id:t.id, name:name.trim(), short:s, kind, color, home, order:t.order });
+    const days = {};
+    dayOv.forEach(o => { if(o.place) days[String(o.d)] = {
+      place:o.place, from:Number(o.from), to:Number(o.to), outside:o.outside||undefined }; });
+    const routine = followId
+      ? { base, follows:{ entityId:followId, fallback:followFb || base } }
+      : { base, days: Object.keys(days).length ? days : undefined };
+    const custody = cusPattern !== "none" && cusPlace
+      ? { pattern:cusPattern, place:cusPlace, anchor:cusAnchor } : null;
+    store.upsert("entities", { id:t.id, name:name.trim(), short:s, kind, color, home,
+                               order:t.order, routine, custody });
     toast(t.id?"Saved":"Added"); onClose();
   }
+  const addDay = () => setDayOv(a => [...a, { d:1, place:base, from:0, to:24, outside:"" }]);
+  const setDay = (i, patch) => setDayOv(a => a.map((o,k) => k===i ? { ...o, ...patch } : o));
+  const delDay = (i) => setDayOv(a => a.filter((_,k) => k!==i));
+  const placeOpts = places.map(p=><option key={p.id} value={p.id}>{p.name}</option>);
   function del(){ if(t.id){ store.remove("entities", t.id); toast("Removed"); } onClose(); }
   return (
     <div className="wa-modalscrim" onClick={onClose}>
@@ -1322,6 +1455,75 @@ function PersonEditor({ entity, places, store, onClose, toast }){
           <div className="wa-field"><span className="wa-label">Home base</span>
             <select className="wa-select" value={home} onChange={e=>setHome(e.target.value)}>{places.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></div>
         </div>
+
+        <p className="wa-set__group" style={{marginTop:6}}>Usual routine</p>
+        <div className="wa-field">
+          <span className="wa-label">Usually in</span>
+          <select className="wa-select" value={base} onChange={e=>setBase(e.target.value)}>{placeOpts}</select>
+          <p className="wa-hint">Where they are on an ordinary day. Trips and pins override this.</p>
+        </div>
+
+        <div className="wa-field">
+          <span className="wa-label">Follows someone (for pets)</span>
+          <select className="wa-select" value={followId} onChange={e=>setFollowId(e.target.value)}>
+            <option value="">Nobody - use the routine below</option>
+            {others.map(e=><option key={e.id} value={e.id}>{e.name}</option>)}
+          </select>
+          {followId && (
+            <div style={{marginTop:8}}>
+              <span className="wa-label">When that person is somewhere they can't come</span>
+              <select className="wa-select" value={followFb} onChange={e=>setFollowFb(e.target.value)}>
+                <option value="">Stay at home base</option>{placeOpts}
+              </select>
+            </div>
+          )}
+        </div>
+
+        {!followId && (
+          <div className="wa-field">
+            <span className="wa-label">Specific days</span>
+            {dayOv.length===0 && <p className="wa-hint">Same every day. Add a day if they're somewhere else on, say, Tuesdays.</p>}
+            {dayOv.map((o,i) => (
+              <div key={i} className="wa-dayov">
+                <select className="wa-select" value={o.d} onChange={e=>setDay(i,{d:Number(e.target.value)})}>
+                  {DAY_NAMES.map((dn,di)=><option key={di} value={di}>{dn}</option>)}
+                </select>
+                <select className="wa-select" value={o.place} onChange={e=>setDay(i,{place:e.target.value})}>{placeOpts}</select>
+                <select className="wa-select" value={o.from} onChange={e=>setDay(i,{from:e.target.value})}>
+                  {Array.from({length:25}).map((_,h)=><option key={h} value={h}>{h===0||h===24?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm"}</option>)}
+                </select>
+                <select className="wa-select" value={o.to} onChange={e=>setDay(i,{to:e.target.value})}>
+                  {Array.from({length:25}).map((_,h)=><option key={h} value={h}>{h===0||h===24?"12am":h<12?h+"am":h===12?"12pm":(h-12)+"pm"}</option>)}
+                </select>
+                <select className="wa-select" value={o.outside} onChange={e=>setDay(i,{outside:e.target.value})}>
+                  <option value="">rest of day: usual</option>{placeOpts}
+                </select>
+                <button className="wa-prow__del" onClick={()=>delDay(i)} title="Remove">{"×"}</button>
+              </div>
+            ))}
+            <button className="wa-addrow" onClick={addDay}>+ Add a day</button>
+          </div>
+        )}
+
+        <p className="wa-set__group">Custody rotation</p>
+        <div className="wa-field">
+          <select className="wa-select" value={cusPattern} onChange={e=>setCusPattern(e.target.value)}>
+            <option value="none">None</option>
+            <option value="alt-weekends">Every other weekend</option>
+            <option value="week-on-off">Week on, week off</option>
+          </select>
+          {cusPattern!=="none" && (
+            <div className="wa-row2" style={{marginTop:8}}>
+              <div><span className="wa-label">Where</span>
+                <select className="wa-select" value={cusPlace} onChange={e=>setCusPlace(e.target.value)}>
+                  <option value="">Pick a place</option>{placeOpts}</select></div>
+              <div><span className="wa-label">Starting</span>
+                <input className="wa-input" type="date" value={cusAnchor} onChange={e=>setCusAnchor(e.target.value)} /></div>
+            </div>
+          )}
+          {cusPattern!=="none" && <p className="wa-hint">One-off swaps and holidays: set a pin on that day, which beats the rotation.</p>}
+        </div>
+
         <button className="wa-btn wa-btn--primary wa-btn--block" onClick={save}>{t.id?"Save changes":"Add"}</button>
         {t.id && <button className="wa-btn wa-btn--danger wa-btn--block" style={{marginTop:10}} onClick={del}>Remove</button>}
       </div>
@@ -2077,7 +2279,20 @@ function App(){
       store.seedMany("places", SEED_PLACES);
       store.seedMany("entities", SEED_ENTITIES);
       log("SEED","first-run seed of roster + places");
-    } else { seededRef.current = true; }
+    } else {
+      seededRef.current = true;
+      // One-time migration: give anyone without a routine the one that matches
+      // what the hardcoded rules were already doing, so the recurring layer
+      // becomes editable data without changing a single resolved placement.
+      const needs = ents.filter(e => !e.routine);
+      if(needs.length){
+        needs.forEach(e => store.upsert("entities", {
+          id: e.id,
+          routine: SEED_ROUTINE[e.id] || { base: e.home || "sanantonio" },
+        }));
+        log("MIGRATE","seeded routines for "+needs.length+" entities");
+      }
+    }
   }, [store.authReady, store.authed, store.sync, store.data.entities, store.data.places]);
 
   // Derived, sorted family + places from the store.
@@ -2086,7 +2301,9 @@ function App(){
   const homeOf   = useMemo(()=>{ const m={}; entities.forEach(e=>{ m[e.id]=e.home||"sanantonio"; }); return m; }, [entities]);
   const placesById = useMemo(()=>{ const m={}; places.forEach(p=>{ m[p.id]=p; }); return m; }, [places]);
   const placeOrder = useMemo(()=> places.map(p=>p.id), [places]);
-  const resolver = useMemo(()=> makeResolver(store.data.placements||[], homeOf), [store.data.placements, homeOf]);
+  const entById  = useMemo(()=>{ const m={}; entities.forEach(e=>{ m[e.id]=e; }); return m; }, [entities]);
+  const resolver = useMemo(()=> makeResolver(store.data.placements||[], homeOf, entById),
+                           [store.data.placements, homeOf, entById]);
   const placeOf = useCallback((id)=> placesById[id] || { id, name:id, full:"", kind:"metro" }, [placesById]);
 
   // Tap a person+date -> edit the existing single-day placement, or start a new pin.
