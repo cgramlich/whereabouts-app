@@ -232,6 +232,32 @@
   font-weight:600; font-size:12.5px; padding:6px 14px; border-radius:7px; cursor:pointer; }
 .wa-storytoggle button.is-on{ background:var(--ink); color:#fff; }
 
+/* Month strips - one ribbon per person, ink only on away days */
+.wa-strips{ background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:14px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
+.wa-strip{ display:flex; align-items:center; gap:8px; height:26px; }
+.wa-strip--head{ height:16px; }
+.wa-strip__who{ width:92px; flex:none; display:flex; align-items:center; gap:7px;
+  font-size:12px; font-weight:600; white-space:nowrap; overflow:hidden; }
+.wa-strip__cells{ flex:1; display:grid; gap:1px; height:18px; }
+.wa-strip--head .wa-strip__cells{ height:14px; }
+.wa-strip__c{ border:none; padding:0; border-radius:2px; background:var(--surface-2); cursor:pointer; }
+.wa-strip__c.is-away{ border-radius:2px; }
+.wa-strip__c.is-wk{ box-shadow:inset 1px 0 0 var(--line); }
+.wa-strip__num{ font-family:var(--mono); font-size:8px; color:var(--muted); text-align:center; line-height:14px; }
+
+/* Year states */
+.wa-ycell.is-out{ opacity:.25; }
+.wa-ycell.is-calm{ background:var(--surface-2); }
+.wa-ystates{ grid-column:1/-1; border-top:1px solid var(--surface-2); margin-top:4px; padding-top:14px; }
+.wa-ystates__h{ font-size:11px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+  font-weight:600; margin:0 0 10px; }
+.wa-ystate{ display:flex; align-items:center; gap:10px; padding:5px 0; font-size:13px; }
+.wa-ystate__sw{ width:26px; height:12px; border-radius:3px; flex:none; background:var(--surface-2);
+  border:1px solid var(--line); }
+.wa-ystate__n{ flex:1; }
+.wa-ystate__d{ font-family:var(--mono); font-size:12px; color:var(--muted); }
+
 /* Exceptions line - "who is away", in words, above every view */
 .wa-exc{ margin:14px 4px 0; font-size:13.5px; color:var(--ink); line-height:1.65; }
 .wa-exc b{ font-weight:700; }
@@ -334,12 +360,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.8.0";
+const APP_VERSION = "0.9.0";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.8";
+const BUILD = "2026-08-01.9";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -386,9 +412,12 @@ function firstName(name){ const p=(name||"").split(" "); const last=p[p.length-1
    preview) these populate the entities/places collections once; after
    that everything is edited in the app and lives in the store.
    ============================================================ */
+// Molly's base is DALLAS (that is where she goes when Auburn is on break), so
+// Auburn correctly renders as "away". Hank stays based in San Antonio so Boston
+// reads as away. Keep in step with the cloud `entities` rows.
 const HOME_OF = {
   chris:"sanantonio", kristin:"sanantonio", jenna:"austin", hank:"sanantonio", cjr:"dallas",
-  molly:"sanantonio", samuel:"sanantonio", bellarose:"sanantonio", gracieann:"sanantonio", sophia:"sanantonio",
+  molly:"dallas", samuel:"sanantonio", bellarose:"sanantonio", gracieann:"sanantonio", sophia:"sanantonio",
   gus:"sanantonio", graham:"sanantonio", lola:"sanantonio",
 };
 const SEED_ROSTER = [
@@ -1691,6 +1720,172 @@ function StoryView({ entities, days, ctx, onPickDay, onPick }){
 }
 
 /* ============================================================
+   MONTH STRIPS - one ribbon per person, a month across.
+   Ink ONLY on away days (the leave-wallchart discipline), so a calm month is
+   mostly empty and a busy one is mostly full. Rows are ordered by TRAJECTORY
+   SIMILARITY rather than alphabetically, so people who travel together end up
+   adjacent and a shared trip reads as one solid block instead of two unrelated
+   stripes in a plaid grid.
+   ============================================================ */
+function MonthStrips({ entities, cursor, ctx, onPickDay }){
+  const L = useMemo(() => {
+    const y = cursor.getFullYear(), m = cursor.getMonth();
+    const nDays = new Date(y, m+1, 0).getDate();
+    const days = Array.from({length:nDays}, (_,i) => new Date(y, m, i+1));
+    const grid = {}, jour = {};
+    entities.forEach(e => {
+      grid[e.id] = days.map(d => ctx.dayPlacement(e.id, d));
+      jour[e.id] = days.map(d => ctx.journeyOf(e.id, d));
+    });
+    const awayAt = (id, t) => grid[id][t] !== ctx.homeOf[id];
+    const movers = entities.filter(e =>
+      days.some((_, t) => awayAt(e.id, t)) || new Set(grid[e.id]).size > 1);
+    const hidden = entities.length - movers.length;
+
+    // Greedy nearest-neighbour chain on Hamming distance between day-vectors.
+    // Seeded with whoever was away most, so the busiest row is on top.
+    const dist = (a,b) => { let d=0; for(let t=0;t<nDays;t++) if(grid[a][t]!==grid[b][t]) d++; return d; };
+    const awayDays = (id) => days.reduce((n,_,t) => n + (awayAt(id,t)?1:0), 0);
+    const pool = movers.slice().sort((a,b) => awayDays(b.id) - awayDays(a.id));
+    const ordered = [];
+    if(pool.length){
+      ordered.push(pool.shift());
+      while(pool.length){
+        const last = ordered[ordered.length-1].id;
+        let bi = 0, bd = Infinity;
+        pool.forEach((e,i) => { const d = dist(last, e.id); if(d < bd){ bd = d; bi = i; } });
+        ordered.push(pool.splice(bi,1)[0]);
+      }
+    }
+    return { days, nDays, grid, jour, ordered, hidden, awayAt };
+  }, [entities, cursor, ctx]);
+
+  const { days, nDays, grid, jour, ordered, hidden, awayAt } = L;
+  const cols = { gridTemplateColumns:`repeat(${nDays},1fr)` };
+
+  if(!ordered.length){
+    return <div className="wa-card"><p className="wa-hint" style={{textAlign:"center",padding:"28px 0"}}>
+      Everyone was in their home base all month.</p></div>;
+  }
+  return (
+    <div className="wa-strips">
+      <div className="wa-strip wa-strip--head">
+        <div className="wa-strip__who" />
+        <div className="wa-strip__cells" style={cols}>
+          {days.map((d,t) => (
+            <span key={t} className={"wa-strip__num"+(d.getDay()===0?" is-wk":"")}>
+              {(d.getDate()===1 || d.getDate()%7===0) ? d.getDate() : ""}
+            </span>
+          ))}
+        </div>
+      </div>
+      {ordered.map(e => (
+        <div className="wa-strip" key={e.id}>
+          <div className="wa-strip__who"><Token entity={e} size={20} /><span>{firstName(e.name)}</span></div>
+          <div className="wa-strip__cells" style={cols}>
+            {days.map((d,t) => {
+              const away = awayAt(e.id, t);
+              const j = jour[e.id][t];
+              const place = ctx.placeOf(grid[e.id][t]).name;
+              const bg = !away ? undefined
+                : j ? { background:`linear-gradient(135deg, ${e.color} 50%, ${rgba(e.color,.28)} 50%)` }
+                    : { background:e.color };
+              return (
+                <button key={t} style={bg}
+                  className={"wa-strip__c"+(away?" is-away":"")+(d.getDay()===0?" is-wk":"")}
+                  title={firstName(e.name)+" - "+place+" - "+MONTH_ABBR[d.getMonth()]+" "+d.getDate()}
+                  onClick={()=>onPickDay && onPickDay(d)} />
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      {hidden > 0 && <p className="wa-story__more">{hidden} {hidden===1?"other was":"others were"} in their home base all month.</p>}
+      <p className="wa-hint" style={{margin:"8px 4px 0"}}>Colored days are days away from home. Split cells are travel days.</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   YEAR - the family's year as texture, plus its recurring STATES.
+   Each day is a thin stack of stripes, one per person who is away, in fixed
+   roster order - so identity survives as stripe POSITION even at a few pixels,
+   where hue alone would fail. Days when everyone is in their home base draw
+   almost nothing, so a calm stretch is visibly quiet.
+   Underneath, the year's most common configurations are named in plain words.
+   ============================================================ */
+function YearStates({ entities, cursor, ctx, onPickMonth }){
+  const L = useMemo(() => {
+    const y = cursor.getFullYear();
+    const dayInfo = new Map();          // ymd -> away entity list (roster order)
+    const sig = new Map();              // signature -> { ids, count }
+    for(let m=0; m<12; m++){
+      const n = new Date(y, m+1, 0).getDate();
+      for(let d=1; d<=n; d++){
+        const date = new Date(y, m, d);
+        const away = entities.filter(e => ctx.dayPlacement(e.id, date) !== ctx.homeOf[e.id]);
+        dayInfo.set(m*100+d, away);
+        const key = away.map(e => e.id).join("|");
+        const s = sig.get(key) || { ids: away.map(e => e.id), count: 0 };
+        s.count++; sig.set(key, s);
+      }
+    }
+    const states = [...sig.values()].sort((a,b) => b.count - a.count).slice(0, 6);
+    return { dayInfo, states };
+  }, [entities, cursor, ctx]);
+
+  const nameOf = (id) => { const e = entities.find(x => x.id === id); return e ? firstName(e.name) : id; };
+  // Name the state by WHO, not just how many - two different groups of five are
+  // different facts, and "5 away" twice in a list tells you nothing.
+  const label = (ids) => {
+    if(!ids.length) return "Everyone home";
+    if(ids.length <= 3) return ids.map(nameOf).join(" + ") + " away";
+    return ids.slice(0,2).map(nameOf).join(" + ") + " +" + (ids.length-2) + " more away";
+  };
+  const stripes = (away) => {
+    if(!away.length) return undefined;
+    const show = away.slice(0, 4);
+    const step = 100/show.length;
+    const stops = show.map((e,i) => `${e.color} ${i*step}% ${(i+1)*step}%`).join(", ");
+    return { background:`linear-gradient(90deg, ${stops})` };
+  };
+  const y = cursor.getFullYear();
+
+  return (
+    <div className="wa-year">
+      {Array.from({length:12}).map((_, m) => {
+        const gridStart = startOfWeek(new Date(y, m, 1));
+        const cells = Array.from({length:42}).map((_, i) => addDays(gridStart, i));
+        return (
+          <div key={m} className="wa-ymonth">
+            <button className="wa-ymonth__label" onClick={()=>onPickMonth(m)}>{MONTH_ABBR[m]}</button>
+            <div className="wa-ymonth__grid">
+              {cells.map((d, i) => {
+                const inMonth = d.getMonth() === m;
+                const away = inMonth ? (L.dayInfo.get(m*100 + d.getDate()) || []) : [];
+                return <span key={i} className={"wa-ycell"+(inMonth?"":" is-out")+(inMonth&&!away.length?" is-calm":"")}
+                  style={inMonth ? stripes(away) : undefined}
+                  title={inMonth ? `${MONTH_ABBR[m]} ${d.getDate()} - ${away.length ? away.map(e=>firstName(e.name)).join(", ")+" away" : "everyone home"}` : ""} />;
+              })}
+            </div>
+          </div>
+        );
+      })}
+      <div className="wa-ystates">
+        <p className="wa-ystates__h">This year, most often</p>
+        {L.states.map((s,i) => (
+          <div key={i} className="wa-ystate">
+            <span className="wa-ystate__sw" style={s.ids.length ? stripes(s.ids.map(id=>entities.find(e=>e.id===id)).filter(Boolean)) : undefined} />
+            <span className="wa-ystate__n">{label(s.ids)}</span>
+            <span className="wa-ystate__d">{s.count} {s.count===1?"day":"days"}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    EXCEPTIONS LINE - "who is away", in words, above every view.
    The cheapest answer to the app's core question: it needs no chart at all, and
    it stays readable when a dense view is not. Groups people who are in the SAME
@@ -1763,6 +1958,8 @@ function App(){
   const [settingsOpen,setSettingsOpen]=useState(false);
   const [weekMode,setWeekMode]=useState(()=>lsGet("weekMode","story"));
   useEffect(()=>{ lsSet("weekMode", weekMode); },[weekMode]);
+  const [monthMode,setMonthMode]=useState(()=>lsGet("monthMode","strips"));
+  useEffect(()=>{ lsSet("monthMode", monthMode); },[monthMode]);
   const [placeSheet,setPlaceSheet]=useState(null);   // { seed } | null
   const [personEdit,setPersonEdit]=useState(null);   // entity | {} | null
   const [placeEdit,setPlaceEdit]=useState(null);     // place | {} | null
@@ -1946,8 +2143,18 @@ function App(){
               : <WeekView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
           </div>
         )}
-        {view==="Month" && <MonthView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
-        {view==="Year" && <YearView entities={entities} cursor={cursor} ctx={ctx} onPickMonth={(m)=>{ setCursor(new Date(cursor.getFullYear(), m, 1)); setView("Month"); }} />}
+        {view==="Month" && (
+          <div className="wa-storywrap">
+            <div className="wa-storytoggle">
+              <button className={monthMode==="strips"?"is-on":""} onClick={()=>setMonthMode("strips")}>Strips</button>
+              <button className={monthMode==="calendar"?"is-on":""} onClick={()=>setMonthMode("calendar")}>Calendar</button>
+            </div>
+            {monthMode==="strips"
+              ? <MonthStrips entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />
+              : <MonthView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
+          </div>
+        )}
+        {view==="Year" && <YearStates entities={entities} cursor={cursor} ctx={ctx} onPickMonth={(m)=>{ setCursor(new Date(cursor.getFullYear(), m, 1)); setView("Month"); }} />}
       </main>
 
       <footer className="wa-legend">
