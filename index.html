@@ -303,12 +303,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.6.3";
+const APP_VERSION = "0.6.4";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.4";
+const BUILD = "2026-08-01.5";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -404,9 +404,6 @@ function ymdNum(date){ return date.getFullYear()*10000 + (date.getMonth()+1)*100
 function strToYmd(s){ const a=s.split("-").map(Number); return a[0]*10000 + a[1]*100 + a[2]; }
 const isSummer = (d) => { const m=d.getMonth(); return m>=5 && m<=7; };
 const isTerm = (d) => !isSummer(d);
-function gusBoarding(date){ const dom=date.getDate(), day=date.getDay(); return (day===0||day===6) && dom>=8 && dom<=14; }
-
-// Default custody sketch (Sophia, alternating weekends -> dad's). Editable in 3b.
 // No custody rotation is configured. The prototype's placeholder (Sophia at her
 // dad's on alternating weekends) was a GUESS and is switched off: per Chris
 // (2026-08-01) Sophia is in San Antonio for the rest of 2026, until further
@@ -416,12 +413,19 @@ function custodyPlace(entityId, date){
   return null;
 }
 // Recurring per-person default. Editable in 3b.
+// Sun=0 Mon=1 Tue=2 Wed=3 Thu=4 Fri=5 Sat=6
 function rulePlace(entityId, date){
   const day = date.getDay();
   const h = date.getHours();
-  const weekday = day>=1 && day<=5;
   switch(entityId){
-    case "chris":   if(!weekday) return "sanantonio"; return h>=8 && h<18 ? "office" : "dallas";
+    // Dallas from Tuesday morning to Thursday morning each week, in the office on
+    // Wednesday; San Antonio the rest of the time. Trips already entered override
+    // this. Some weekends are also Dallas - to be entered individually later.
+    case "chris":
+      if(day===2) return h < 10 ? "sanantonio" : "dallas";      // Tue: up in the morning
+      if(day===3) return (h >= 8 && h < 18) ? "office" : "dallas"; // Wed: office day
+      if(day===4) return h < 10 ? "dallas" : "sanantonio";      // Thu: home in the morning
+      return "sanantonio";
     case "kristin": return "sanantonio";
     // Austin through end of May 2027 (law school). The prototype's summer-in-Dallas
     // clerking pattern was a guess and is removed. Beyond May 2027 is UNKNOWN -
@@ -436,8 +440,10 @@ function rulePlace(entityId, date){
     case "bellarose":
     case "gracieann":
     case "sophia":  return "sanantonio";
-    case "gus":     return gusBoarding(date) ? "jordanvalley" : "sanantonio";
-    case "graham":  return "sanantonio";
+    // Gus + Graham normally follow Chris - resolved in placementAt (which can see
+    // his trips, not just this rule). These are only a safety net.
+    case "gus":
+    case "graham":  return "dallas";
     case "lola":    return "sanantonio";
     default:        return HOME_OF[entityId] || "sanantonio";
   }
@@ -476,6 +482,14 @@ function makeResolver(placements, homeOf){
     const pin = pinPlace(entityId, date); if(pin) return pin;
     const trip = tripPlace(entityId, date); if(trip) return trip;
     const cust = custodyPlace(entityId, date); if(cust) return cust;
+    // Gus + Graham travel with Chris: they're with him when he's in San Antonio,
+    // and in Dallas otherwise - including when he's at the office (the office is
+    // no place for a dog) and when he's away on a trip. Resolved HERE rather than
+    // in rulePlace so it sees his real placement, trips included. Any explicit pin
+    // or trip for a dog is handled above and still wins.
+    if(entityId === "gus" || entityId === "graham"){
+      return placementAt("chris", date) === "sanantonio" ? "sanantonio" : "dallas";
+    }
     return rulePlace(entityId, date);
   }
   function dayPlacement(entityId, date){
