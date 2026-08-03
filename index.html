@@ -249,9 +249,12 @@
 .wa-sheet{ background:var(--surface); border:1px solid var(--line); border-radius:18px; width:100%; max-width:460px; padding:18px; box-shadow:0 24px 60px rgba(25,33,43,.28); animation:wa-rise .2s ease both; margin:auto; }
 .wa-sheet__head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
 .wa-sheet__head h2{ font-family:var(--display); font-weight:700; font-size:19px; margin:0; }
-.wa-seg{ display:flex; gap:4px; background:var(--surface-2); padding:4px; border-radius:10px; margin-bottom:14px; }
-.wa-seg__b{ flex:1; border:none; background:transparent; color:var(--muted); font-family:var(--body); font-weight:600; font-size:13px; padding:8px; border-radius:7px; cursor:pointer; }
-.wa-seg__b.is-on{ background:var(--ink); color:#fff; }
+/* Segmented control (Pin/Trip/Journey). Namespaced away from .wa-seg, which is
+   the Day view's absolutely-positioned timeline segment - the two collided and
+   this control inherited position:absolute + a 24px clip. */
+.wa-segctl{ display:flex; gap:4px; background:var(--surface-2); padding:4px; border-radius:10px; margin-bottom:14px; }
+.wa-segctl__b{ flex:1; border:none; background:transparent; color:var(--muted); font-family:var(--body); font-weight:600; font-size:13px; padding:8px; border-radius:7px; cursor:pointer; }
+.wa-segctl__b.is-on{ background:var(--ink); color:#fff; }
 .wa-checks{ display:flex; flex-wrap:wrap; gap:8px; }
 .wa-checkpill{ display:inline-flex; align-items:center; gap:6px; padding:6px 11px; border-radius:999px; border:1px solid var(--line); background:var(--surface); font-size:13px; cursor:pointer; }
 .wa-checkpill.is-on{ border-color:var(--ink); background:var(--ink); color:#fff; }
@@ -281,7 +284,7 @@
 @keyframes wa-slide{ from{ transform:translateX(20px); opacity:.6; } to{ transform:none; opacity:1; } }
 @keyframes wa-rise{ from{ opacity:0; transform:translateY(6px); } to{ opacity:1; transform:none; } }
 @keyframes wa-pop{ from{ opacity:0; transform:scale(.85); } to{ opacity:1; transform:none; } }
-@media (prefers-reduced-motion: reduce){ .wa-root *{ animation:none !important; } }
+@media (prefers-reduced-motion: reduce){ .wa-root *{ animation:none !important; transition:none !important; } }
 
 @media (max-width:680px){
   .wa-root{ padding:12px; }
@@ -303,12 +306,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.6.4";
+const APP_VERSION = "0.6.5";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.5";
+const BUILD = "2026-08-01.6";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -1049,7 +1052,7 @@ function PlacementSheet({ entities, places, store, seed, onClose, toast }){
   }
   function del(){ if(seed&&seed.id){ store.remove("placements", seed.id); toast("Removed"); } onClose(); }
 
-  const TypeBtn = (t,label) => <button className={"wa-seg__b"+(type===t?" is-on":"")} onClick={()=>setType(t)}>{label}</button>;
+  const TypeBtn = (t,label) => <button className={"wa-segctl__b"+(type===t?" is-on":"")} onClick={()=>setType(t)}>{label}</button>;
   const personOptions = entities.map(e => <option key={e.id} value={e.id}>{e.name}</option>);
   const placeOptions = places.map(p => <option key={p.id} value={p.id}>{p.name}</option>);
 
@@ -1060,7 +1063,7 @@ function PlacementSheet({ entities, places, store, seed, onClose, toast }){
           <h2>{editing?"Edit placement":"Set location"}</h2>
           <button className="wa-x" onClick={onClose} aria-label="Close">{"×"}</button>
         </div>
-        <div className="wa-seg">{TypeBtn("pin","Pin (a day)")}{TypeBtn("trip","Trip (range)")}{TypeBtn("journey","Journey")}</div>
+        <div className="wa-segctl">{TypeBtn("pin","Pin (a day)")}{TypeBtn("trip","Trip (range)")}{TypeBtn("journey","Journey")}</div>
 
         {type!=="trip" &&
           <div className="wa-field"><span className="wa-label">Person</span>
