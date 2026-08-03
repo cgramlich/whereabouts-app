@@ -361,12 +361,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.10.0";
+const APP_VERSION = "0.10.1";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.10";
+const BUILD = "2026-08-01.11";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -413,11 +413,12 @@ function firstName(name){ const p=(name||"").split(" "); const last=p[p.length-1
    preview) these populate the entities/places collections once; after
    that everything is edited in the app and lives in the store.
    ============================================================ */
-// Molly's base is DALLAS (that is where she goes when Auburn is on break), so
-// Auburn correctly renders as "away". Hank stays based in San Antonio so Boston
-// reads as away. Keep in step with the cloud `entities` rows.
+// Molly AND Hank are based in DALLAS - that is where each goes when school is
+// out - so Auburn and Boston correctly render as "away" (and, under the
+// three-state model, as "expected" during term). Keep in step with the cloud
+// `entities` rows.
 const HOME_OF = {
-  chris:"sanantonio", kristin:"sanantonio", jenna:"austin", hank:"sanantonio", cjr:"dallas",
+  chris:"sanantonio", kristin:"sanantonio", jenna:"austin", hank:"dallas", cjr:"dallas",
   molly:"dallas", samuel:"sanantonio", bellarose:"sanantonio", gracieann:"sanantonio", sophia:"sanantonio",
   gus:"sanantonio", graham:"sanantonio", lola:"sanantonio",
 };
