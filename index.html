@@ -264,6 +264,7 @@
 .wa-exc--calm{ color:var(--green); font-weight:600; }
 .wa-exc__at{ color:var(--muted); }
 .wa-exc__sep{ color:var(--line); }
+.wa-exc__usual{ color:var(--muted); font-size:12.5px; }
 .wa-previewnote{ margin-top:10px; font-size:12px; color:var(--muted); text-align:center; }
 
 /* Settings drawer */
@@ -360,12 +361,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.9.0";
+const APP_VERSION = "0.10.0";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.9";
+const BUILD = "2026-08-01.10";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -513,6 +514,19 @@ function rulePlace(entityId, date){
   }
 }
 
+// Where the ROUTINE alone would put someone - rules and custody only, ignoring
+// pins, trips and journeys. Comparing this against the real placement is what
+// separates "at school / at the office, as always" from "actually somewhere
+// unusual". Recursive for the dogs so their routine follows Chris's routine, not
+// his trip.
+function routineAt(entityId, date){
+  const cust = custodyPlace(entityId, date); if(cust) return cust;
+  if(entityId === "gus" || entityId === "graham"){
+    return routineAt("chris", date) === "sanantonio" ? "sanantonio" : "dallas";
+  }
+  return rulePlace(entityId, date);
+}
+
 // Build a resolver bound to the current placements + home-base map.
 // INDEXED BY ENTITY at construction: pins and journeys become O(1) date lookups
 // and trips only scan that one entity's trips. The previous version scanned the
@@ -602,23 +616,71 @@ function makeResolver(placements, homeOf){
     return best;
   }
 
-  // Who is away from their own home base on a given day, in roster order.
-  // Powers the exceptions summary line; cached for the same reason.
-  const awayCache = new Map();
-  function awayOn(entityIds, date){
-    const key = ymdNum(date);
-    const hit = awayCache.get(key);
+  // The routine's headline place for a day, same aggregation as dayPlacement.
+  const routineCache = new Map();
+  function dayRoutine(entityId, date){
+    const key = entityId + ":" + ymdNum(date);
+    const hit = routineCache.get(key);
     if(hit !== undefined) return hit;
-    const out = [];
-    for(const id of entityIds){
-      const loc = dayPlacement(id, date);
-      if(loc !== homeOf[id]) out.push({ id, place: loc, journey: journeyOf(id, date) });
+    const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
+    const counts = {};
+    for(let h=8; h<=18; h++){
+      const loc = routineAt(entityId, new Date(y, m, d, h));
+      counts[loc] = (counts[loc]||0) + 1;
     }
-    awayCache.set(key, out);
-    return out;
+    const home = homeOf[entityId];
+    let best = routineAt(entityId, new Date(y, m, d, 12));
+    let bestN = -1;
+    for(const [loc,n] of Object.entries(counts)){
+      const weight = loc===home ? n*0.5 : n;
+      if(weight > bestN){ bestN = weight; best = loc; }
+    }
+    routineCache.set(key, best);
+    return best;
   }
 
-  return { journeyOf, placementAt, dayPlacement, anyTrip, awayOn };
+  // THREE states, not two:
+  //   home     - in their own home base            -> quiet, no ink
+  //   expected - away, but where the routine says   -> muted (school, the office)
+  //   unusual  - away, and NOT where routine says   -> full color (a real exception)
+  // This is what stops a semester at school, or a standing weekly commute, from
+  // screaming "away" 250 days a year and drowning out the calm/scattered signal.
+  function dayState(entityId, date){
+    const actual = dayPlacement(entityId, date);
+    if(actual === homeOf[entityId]) return "home";
+    return actual === dayRoutine(entityId, date) ? "expected" : "unusual";
+  }
+  function stateAt(entityId, date){
+    const actual = placementAt(entityId, date);
+    if(actual === homeOf[entityId]) return "home";
+    return actual === routineAt(entityId, date) ? "expected" : "unusual";
+  }
+
+  // Split a day's roster into the two away buckets, in roster order.
+  const statusCache = new Map();
+  function statusOn(entityIds, date){
+    const key = ymdNum(date);
+    const hit = statusCache.get(key);
+    if(hit !== undefined) return hit;
+    const unusual = [], expected = [];
+    for(const id of entityIds){
+      const st = dayState(id, date);
+      if(st === "home") continue;
+      const row = { id, place: dayPlacement(id, date), journey: journeyOf(id, date) };
+      (st === "unusual" ? unusual : expected).push(row);
+    }
+    const out = { unusual, expected };
+    statusCache.set(key, out);
+    return out;
+  }
+  // Everyone not in their own home base, regardless of why.
+  function awayOn(entityIds, date){
+    const s = statusOn(entityIds, date);
+    return s.unusual.concat(s.expected);
+  }
+
+  return { journeyOf, placementAt, dayPlacement, dayRoutine, dayState, stateAt,
+           anyTrip, awayOn, statusOn };
 }
 
 /* ============================================================ LOCAL STORAGE ============================================================ */
@@ -846,17 +908,24 @@ function useStore(){
 }
 
 /* ============================================================ TOKENS ============================================================ */
-// calm = the person is in their home base -> render quiet (tinted, flat) so the
-// Now board reads calm when everyone's home and away-people pop in solid color.
-function Token({ entity, size=34, title, onClick, calm }){
+// Three states, so the board is only loud when something is actually unusual:
+//   home     -> quiet tint, flat
+//   expected -> half-strength (at school / at the office, as always)
+//   unusual  -> full color
+// `calm` is kept as a shorthand for state="home".
+function Token({ entity, size=34, title, onClick, calm, state }){
+  const st = state || (calm ? "home" : "unusual");
   const isPet = entity.kind === "pet";
   const isWhite = (entity.color||"").toUpperCase() === "#FFFFFF";
-  const bg = calm ? rgba(entity.color, 0.16) : entity.color;
-  const txt = calm ? "#19212B" : readableText(entity.color);
-  const border = calm ? `1.5px solid ${isWhite ? "#C7CDD6" : rgba(entity.color, 0.55)}`
-                      : (isWhite ? "1.5px solid #C7CDD6" : "none");
+  const bg = st === "home" ? rgba(entity.color, 0.16)
+           : st === "expected" ? rgba(entity.color, 0.55)
+           : entity.color;
+  const txt = st === "home" ? "#19212B" : readableText(entity.color);
+  const border = st === "unusual"
+    ? (isWhite ? "1.5px solid #C7CDD6" : "none")
+    : `1.5px solid ${isWhite ? "#C7CDD6" : rgba(entity.color, st === "home" ? 0.55 : 0.8)}`;
   return (
-    <div className={"wa-token"+(isPet?" wa-token--pet":"")+(calm?" wa-token--calm":"")} title={title||entity.name} onClick={onClick}
+    <div className={"wa-token"+(isPet?" wa-token--pet":"")+(st!=="unusual"?" wa-token--calm":"")} title={title||entity.name} onClick={onClick}
       style={{ width:size, height:size, background:bg, color:txt,
         borderRadius:isPet?size*0.32:"50%", border, fontSize:size*0.34,
         cursor:onClick?"pointer":"default" }}>
@@ -906,11 +975,13 @@ function NowBoard({ entities, cursor, setCursor, isLive, ctx }){
   const setHour = (h) => { const x=new Date(cursor); x.setHours(h,0,0,0); setCursor(x); };
   const ampm = (h) => `${((h+11)%12)+1} ${h<12?"AM":"PM"}`;
 
-  // One-glance headline: how many are away from their home base right now.
-  const awayCount = entities.filter((e) => {
-    if(ctx.journeyOf(e.id, cursor)) return true;            // traveling counts as away
-    return ctx.placementAt(e.id, cursor) !== ctx.homeOf[e.id];
+  // One-glance headline. Counts only what is UNUSUAL - someone at school or at the
+  // office on a normal day is not news, and counting them buries the real signal.
+  const unusualCount = entities.filter((e) => {
+    if(ctx.journeyOf(e.id, cursor)) return true;            // mid-move always counts
+    return ctx.stateAt(e.id, cursor) === "unusual";
   }).length;
+  const expectedCount = entities.filter((e) => ctx.stateAt(e.id, cursor) === "expected").length;
 
   return (
     <div>
@@ -923,9 +994,11 @@ function NowBoard({ entities, cursor, setCursor, isLive, ctx }){
         <div className="wa-scrub__ticks"><span>6 AM</span><span>Noon</span><span>6 PM</span><span>Midnight</span></div>
       </div>
       <div className="wa-headline">
-        {awayCount===0
-          ? <span className="calm">Everyone's home.</span>
-          : <span><b>{awayCount}</b> of {entities.length} away · <b>{entities.length-awayCount}</b> home</span>}
+        {unusualCount===0
+          ? <span><span className="calm">Everyone's where they should be.</span>
+              {expectedCount>0 && <span> · {expectedCount} away as usual</span>}</span>
+          : <span><b>{unusualCount}</b> {unusualCount===1?"is":"are"} somewhere unusual
+              {expectedCount>0 && <span> · {expectedCount} away as usual</span>}</span>}
       </div>
       <div className="wa-board">
         {occupied.map((locId) => {
@@ -943,7 +1016,7 @@ function NowBoard({ entities, cursor, setCursor, isLive, ctx }){
                   <div key={e.id} className="wa-place__person" onClick={()=>ctx.onPick(e.id, cursor)}>
                     {half
                       ? <HalfToken entity={e} size={38} title={`${e.name}: ${ctx.placeOf(half==="from"?locId:other).name} → ${ctx.placeOf(half==="from"?other:locId).name}`} />
-                      : <Token entity={e} size={38} calm={locId===ctx.homeOf[e.id]} />}
+                      : <Token entity={e} size={38} state={ctx.stateAt(e.id, cursor)} />}
                     <span className="wa-place__pname">{firstName(e.name)}</span>
                     {half==="from" && <span className="wa-place__sub">{"→ " + ctx.placeOf(other).name}</span>}
                     {half==="to" && <span className="wa-place__sub">{ctx.placeOf(other).name + " →"}</span>}
@@ -1520,11 +1593,8 @@ function StoryView({ entities, days, ctx, onPickDay, onPick }){
       jour[e.id] = days.map(d => ctx.journeyOf(e.id, d));
     });
     // --- movers only: hide anyone who sat at home all window and never moved ---
-    const isAwayAt = (id, t) => {
-      const j = jour[id][t];
-      if(j) return j.from !== ctx.homeOf[id] || j.to !== ctx.homeOf[id];
-      return grid[id][t] !== ctx.homeOf[id];
-    };
+    const stateAtDay = (id, t) => jour[id][t] ? "unusual" : ctx.dayState(id, days[t]);
+    const isAwayAt = (id, t) => stateAtDay(id, t) !== "home";
     const interesting = entities.filter(e => {
       const moved = new Set(grid[e.id]).size > 1 || jour[e.id].some(Boolean);
       const away  = days.some((_, t) => isAwayAt(e.id, t));
@@ -1606,17 +1676,18 @@ function StoryView({ entities, days, ctx, onPickDay, onPick }){
       if(p.y2 === undefined) p.y2 = p.y1;
     }));
 
-    // --- away runs (contiguous stretches of colored line) ---
+    // --- runs of contiguous SAME-STATE away days, so each can be drawn at its
+    //     own strength (expected = muted, unusual = full color) ---
     const runs = {};
     interesting.forEach(e => {
-      const r = []; let start = null;
+      const r = []; let start = null, kind = null;
       days.forEach((_, t) => {
-        const away = isAwayAt(e.id, t);
-        if(away && start === null) start = t;
-        if((!away || t === days.length-1) && start !== null){
-          r.push([start, away ? t : t-1]);
-          start = null;
-        }
+        const st = stateAtDay(e.id, t);
+        const away = st !== "home";
+        if(away && start === null){ start = t; kind = st; }
+        else if(away && st !== kind){ r.push([start, t-1, kind]); start = t; kind = st; }
+        if(!away && start !== null){ r.push([start, t-1, kind]); start = null; kind = null; }
+        if(away && t === days.length-1){ r.push([start, t, kind]); start = null; kind = null; }
       });
       runs[e.id] = r;
     });
@@ -1679,23 +1750,25 @@ function StoryView({ entities, days, ctx, onPickDay, onPick }){
               <g key={e.id}>
                 <path d={full} className="wa-story__halo" />
                 <path d={full} className="wa-story__base" />
-                {runs[e.id].map(([a,b], i) => (
+                {runs[e.id].map(([a,b,kind], i) => (
                   <path key={i} d={storySegment(pts, xs, hold, k, a, b)}
-                        fill="none" stroke={e.color} strokeWidth="3"
+                        fill="none" stroke={kind==="unusual" ? e.color : rgba(e.color, 0.42)}
+                        strokeWidth={kind==="unusual" ? 3 : 2.5}
                         strokeLinecap="round" strokeLinejoin="round" />
                 ))}
                 {/* identity marker at the start of each away stretch */}
-                {runs[e.id].map(([a], i) => {
+                {runs[e.id].map(([a,,kind], i) => {
                   const cy = pts[a].y1, cx = xs[a]-hold;
                   const isPet = e.kind === "pet";
-                  const txt = readableText(e.color);
+                  const fill = kind==="unusual" ? e.color : rgba(e.color, 0.42);
+                  const txt = kind==="unusual" ? readableText(e.color) : "#19212B";
+                  const ring = (e.color||"").toUpperCase()==="#FFFFFF" ? "#C7CDD6"
+                             : (kind==="unusual" ? "none" : rgba(e.color, 0.8));
                   return (
                     <g key={"m"+i} onClick={()=>onPick && onPick(e.id, days[a])} style={{cursor:"pointer"}}>
                       {isPet
-                        ? <rect x={cx-8} y={cy-8} width="16" height="16" rx="5" fill={e.color}
-                                stroke={(e.color||"").toUpperCase()==="#FFFFFF" ? "#C7CDD6" : "none"} />
-                        : <circle cx={cx} cy={cy} r="8" fill={e.color}
-                                  stroke={(e.color||"").toUpperCase()==="#FFFFFF" ? "#C7CDD6" : "none"} />}
+                        ? <rect x={cx-8} y={cy-8} width="16" height="16" rx="5" fill={fill} stroke={ring} />
+                        : <circle cx={cx} cy={cy} r="8" fill={fill} stroke={ring} />}
                       <text x={cx} y={cy} dy="0.32em" textAnchor="middle"
                             className="wa-story__mono" fill={txt}>{e.short}</text>
                     </g>
@@ -1737,7 +1810,8 @@ function MonthStrips({ entities, cursor, ctx, onPickDay }){
       grid[e.id] = days.map(d => ctx.dayPlacement(e.id, d));
       jour[e.id] = days.map(d => ctx.journeyOf(e.id, d));
     });
-    const awayAt = (id, t) => grid[id][t] !== ctx.homeOf[id];
+    const stateAtDay = (id, t) => jour[id][t] ? "unusual" : ctx.dayState(id, days[t]);
+    const awayAt = (id, t) => stateAtDay(id, t) !== "home";
     const movers = entities.filter(e =>
       days.some((_, t) => awayAt(e.id, t)) || new Set(grid[e.id]).size > 1);
     const hidden = entities.length - movers.length;
@@ -1757,10 +1831,10 @@ function MonthStrips({ entities, cursor, ctx, onPickDay }){
         ordered.push(pool.splice(bi,1)[0]);
       }
     }
-    return { days, nDays, grid, jour, ordered, hidden, awayAt };
+    return { days, nDays, grid, jour, ordered, hidden, awayAt, stateAtDay };
   }, [entities, cursor, ctx]);
 
-  const { days, nDays, grid, jour, ordered, hidden, awayAt } = L;
+  const { days, nDays, grid, jour, ordered, hidden, awayAt, stateAtDay } = L;
   const cols = { gridTemplateColumns:`repeat(${nDays},1fr)` };
 
   if(!ordered.length){
@@ -1784,16 +1858,17 @@ function MonthStrips({ entities, cursor, ctx, onPickDay }){
           <div className="wa-strip__who"><Token entity={e} size={20} /><span>{firstName(e.name)}</span></div>
           <div className="wa-strip__cells" style={cols}>
             {days.map((d,t) => {
-              const away = awayAt(e.id, t);
+              const st = stateAtDay(e.id, t);
               const j = jour[e.id][t];
               const place = ctx.placeOf(grid[e.id][t]).name;
-              const bg = !away ? undefined
-                : j ? { background:`linear-gradient(135deg, ${e.color} 50%, ${rgba(e.color,.28)} 50%)` }
-                    : { background:e.color };
+              const ink = st==="unusual" ? e.color : rgba(e.color, 0.34);
+              const bg = st==="home" ? undefined
+                : j ? { background:`linear-gradient(135deg, ${ink} 50%, ${rgba(e.color,.20)} 50%)` }
+                    : { background: ink };
               return (
                 <button key={t} style={bg}
-                  className={"wa-strip__c"+(away?" is-away":"")+(d.getDay()===0?" is-wk":"")}
-                  title={firstName(e.name)+" - "+place+" - "+MONTH_ABBR[d.getMonth()]+" "+d.getDate()}
+                  className={"wa-strip__c"+(st!=="home"?" is-away":"")+(d.getDay()===0?" is-wk":"")}
+                  title={firstName(e.name)+" - "+place+(st==="expected"?" (as usual)":"")+" - "+MONTH_ABBR[d.getMonth()]+" "+d.getDate()}
                   onClick={()=>onPickDay && onPickDay(d)} />
               );
             })}
@@ -1801,7 +1876,7 @@ function MonthStrips({ entities, cursor, ctx, onPickDay }){
         </div>
       ))}
       {hidden > 0 && <p className="wa-story__more">{hidden} {hidden===1?"other was":"others were"} in their home base all month.</p>}
-      <p className="wa-hint" style={{margin:"8px 4px 0"}}>Colored days are days away from home. Split cells are travel days.</p>
+      <p className="wa-hint" style={{margin:"8px 4px 0"}}>Solid days are somewhere unusual; faded days are away as usual (school, the office). Split cells are travel days.</p>
     </div>
   );
 }
@@ -1823,7 +1898,9 @@ function YearStates({ entities, cursor, ctx, onPickMonth }){
       const n = new Date(y, m+1, 0).getDate();
       for(let d=1; d<=n; d++){
         const date = new Date(y, m, d);
-        const away = entities.filter(e => ctx.dayPlacement(e.id, date) !== ctx.homeOf[e.id]);
+        // Only UNUSUAL days paint. Someone at school or at the office on an
+        // ordinary day is not an event, so a routine stretch reads as calm.
+        const away = entities.filter(e => ctx.dayState(e.id, date) === "unusual");
         dayInfo.set(m*100+d, away);
         const key = away.map(e => e.id).join("|");
         const s = sig.get(key) || { ids: away.map(e => e.id), count: 0 };
@@ -1838,7 +1915,7 @@ function YearStates({ entities, cursor, ctx, onPickMonth }){
   // Name the state by WHO, not just how many - two different groups of five are
   // different facts, and "5 away" twice in a list tells you nothing.
   const label = (ids) => {
-    if(!ids.length) return "Everyone home";
+    if(!ids.length) return "Everyone where they should be";
     if(ids.length <= 3) return ids.map(nameOf).join(" + ") + " away";
     return ids.slice(0,2).map(nameOf).join(" + ") + " +" + (ids.length-2) + " more away";
   };
@@ -1865,7 +1942,7 @@ function YearStates({ entities, cursor, ctx, onPickMonth }){
                 const away = inMonth ? (L.dayInfo.get(m*100 + d.getDate()) || []) : [];
                 return <span key={i} className={"wa-ycell"+(inMonth?"":" is-out")+(inMonth&&!away.length?" is-calm":"")}
                   style={inMonth ? stripes(away) : undefined}
-                  title={inMonth ? `${MONTH_ABBR[m]} ${d.getDate()} - ${away.length ? away.map(e=>firstName(e.name)).join(", ")+" away" : "everyone home"}` : ""} />;
+                  title={inMonth ? `${MONTH_ABBR[m]} ${d.getDate()} - ${away.length ? away.map(e=>firstName(e.name)).join(", ")+" somewhere unusual" : "everyone where they should be"}` : ""} />;
               })}
             </div>
           </div>
@@ -1893,9 +1970,11 @@ function YearStates({ entities, cursor, ctx, onPickMonth }){
    ============================================================ */
 function ExceptionsLine({ entities, cursor, ctx }){
   const info = useMemo(() => {
-    const away = ctx.awayOn(entities.map(e => e.id), cursor);
-    if(!away.length) return { count:0, groups:[] };
+    const st = ctx.statusOn(entities.map(e => e.id), cursor);
+    const away = st.unusual;                       // lead with real exceptions only
     const nameOf = (id) => { const e = entities.find(x => x.id === id); return e ? firstName(e.name) : id; };
+    const usual = st.expected.map(a => nameOf(a.id) + " " + ctx.placeOf(a.place).name);
+    if(!away.length) return { count:0, groups:[], usual };
     // Group by destination; a journey is its own group (the person is mid-move).
     const byKey = new Map();
     for(const a of away){
@@ -1913,11 +1992,19 @@ function ExceptionsLine({ entities, cursor, ctx }){
       }
       return { ...g, names: g.ids.map(nameOf), back };
     });
-    return { count: away.length, groups };
+    return { count: away.length, groups, usual };
   }, [entities, cursor, ctx]);
 
+  const usualTail = info.usual && info.usual.length
+    ? <span className="wa-exc__usual"> · {info.usual.join(", ")} (as usual)</span>
+    : null;
+
   if(info.count === 0){
-    return <p className="wa-exc wa-exc--calm">Everyone's home.</p>;
+    return (
+      <p className="wa-exc">
+        <span className="wa-exc--calm">Everyone's where they should be.</span>{usualTail}
+      </p>
+    );
   }
   const fmtBack = (d) => {
     if(!d) return null;
@@ -1927,7 +2014,7 @@ function ExceptionsLine({ entities, cursor, ctx }){
   };
   return (
     <p className="wa-exc">
-      <b>{info.count} away:</b>{" "}
+      <b>{info.count} {info.count===1?"exception":"exceptions"}:</b>{" "}
       {info.groups.map((g, i) => {
         const who = g.names.length > 2
           ? g.names.slice(0, -1).join(", ") + " + " + g.names[g.names.length - 1]
@@ -1943,6 +2030,7 @@ function ExceptionsLine({ entities, cursor, ctx }){
           </span>
         );
       })}
+      {usualTail}
     </p>
   );
 }
