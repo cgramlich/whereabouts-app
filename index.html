@@ -303,12 +303,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.6.2";
+const APP_VERSION = "0.6.3";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.3";
+const BUILD = "2026-08-01.4";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -407,13 +407,13 @@ const isTerm = (d) => !isSummer(d);
 function gusBoarding(date){ const dom=date.getDate(), day=date.getDay(); return (day===0||day===6) && dom>=8 && dom<=14; }
 
 // Default custody sketch (Sophia, alternating weekends -> dad's). Editable in 3b.
+// No custody rotation is configured. The prototype's placeholder (Sophia at her
+// dad's on alternating weekends) was a GUESS and is switched off: per Chris
+// (2026-08-01) Sophia is in San Antonio for the rest of 2026, until further
+// notice. Individual away-days can still be entered as pins/trips. Slice 3b adds
+// a real, editable custody schedule (rotation + single-day exceptions).
 function custodyPlace(entityId, date){
-  if(entityId !== "sophia") return null;
-  const day = date.getDay();
-  if(day!==0 && day!==6) return null;
-  const start = new Date(date.getFullYear(), 0, 1);
-  const week = Math.floor((date - start) / (7*86400000));
-  return week % 2 === 0 ? "dads" : null;
+  return null;
 }
 // Recurring per-person default. Editable in 3b.
 function rulePlace(entityId, date){
@@ -423,10 +423,10 @@ function rulePlace(entityId, date){
   switch(entityId){
     case "chris":   if(!weekday) return "sanantonio"; return h>=8 && h<18 ? "office" : "dallas";
     case "kristin": return "sanantonio";
-    case "jenna":
-      if(isTerm(date)) return "austin";
-      if(!weekday) return "austin";
-      return h>=9 && h<17 ? "office" : "dallas";
+    // Austin through end of May 2027 (law school). The prototype's summer-in-Dallas
+    // clerking pattern was a guess and is removed. Beyond May 2027 is UNKNOWN -
+    // revisit rather than let this quietly keep asserting Austin forever.
+    case "jenna":   return "austin";
     case "cjr":     return "dallas";
     case "hank":    return "boston";
     // Molly's default is Auburn (school). Breaks + summer are entered as real
