@@ -361,12 +361,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.10.1";
+const APP_VERSION = "0.10.2";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.11";
+const BUILD = "2026-08-01.12";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -419,7 +419,7 @@ function firstName(name){ const p=(name||"").split(" "); const last=p[p.length-1
 // `entities` rows.
 const HOME_OF = {
   chris:"sanantonio", kristin:"sanantonio", jenna:"austin", hank:"dallas", cjr:"dallas",
-  molly:"dallas", samuel:"sanantonio", bellarose:"sanantonio", gracieann:"sanantonio", sophia:"sanantonio",
+  molly:"dallas", samuel:"dallas", bellarose:"sanantonio", gracieann:"sanantonio", sophia:"sanantonio",
   gus:"sanantonio", graham:"sanantonio", lola:"sanantonio",
 };
 const SEED_ROSTER = [
@@ -502,7 +502,7 @@ function rulePlace(entityId, date){
     // Molly's default is Auburn (school). Breaks + summer are entered as real
     // date-range placements (Dallas), which override this rule.
     case "molly":   return "auburn";
-    case "samuel":
+    case "samuel":  return "dallas";
     case "bellarose":
     case "gracieann":
     case "sophia":  return "sanantonio";
