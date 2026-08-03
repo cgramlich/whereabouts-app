@@ -210,6 +210,12 @@
 .wa-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:16px; padding:12px 16px; background:var(--surface); border:1px solid var(--line); border-radius:14px; }
 .wa-legend__item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
 .wa-hint{ font-size:12.5px; color:var(--muted); line-height:1.5; }
+/* Exceptions line - "who is away", in words, above every view */
+.wa-exc{ margin:14px 4px 0; font-size:13.5px; color:var(--ink); line-height:1.65; }
+.wa-exc b{ font-weight:700; }
+.wa-exc--calm{ color:var(--green); font-weight:600; }
+.wa-exc__at{ color:var(--muted); }
+.wa-exc__sep{ color:var(--line); }
 .wa-previewnote{ margin-top:10px; font-size:12px; color:var(--muted); text-align:center; }
 
 /* Settings drawer */
@@ -306,12 +312,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.6.5";
+const APP_VERSION = "0.7.0";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.6";
+const BUILD = "2026-08-01.7";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -370,8 +376,12 @@ const SEED_ROSTER = [
   { id:"cjr",       name:"Chris Jr.", short:"CJ", kind:"person", color:"#EA580C" },
   { id:"samuel",    name:"Samuel",    short:"Sa", kind:"person", color:"#6D28D9" },
   { id:"hank",      name:"Hank",      short:"Ha", kind:"person", color:"#DC2626" },
-  { id:"molly",     name:"Molly",     short:"Mo", kind:"person", color:"#D97706" },
-  { id:"bellarose", name:"Bellarose", short:"Br", kind:"person", color:"#F472B6" },
+  // Olive, not amber: amber collided with Hank's red + CJR's orange, a warm triple
+  // that is indistinguishable at token size and collapses entirely under protanopia.
+  { id:"molly",     name:"Molly",     short:"Mo", kind:"person", color:"#A16207" },
+  // Magenta, not rose: rose differed from Kristin's pink only in LIGHTNESS, so the
+  // two merged at a glance. Separating by hue survives small sizes and distance.
+  { id:"bellarose", name:"Bellarose", short:"Br", kind:"person", color:"#C026D3" },
   { id:"gracieann", name:"Gracieann", short:"Gr", kind:"person", color:"#0EA5E9" },
   { id:"sophia",    name:"Sophia",    short:"So", kind:"person", color:"#16A34A" },
   { id:"gus",       name:"Gus",       short:"Gu", kind:"pet",    color:"#18181B" },
@@ -393,7 +403,7 @@ const SEED_PLACE_LIST = [
 const SEED_PLACES = SEED_PLACE_LIST.map((p, i) => ({ ...p, order: i }));
 const PLACE_KINDS = ["metro","work","custody","school","boarding","other"];
 const DEFAULT_COLOR = { chris:"#1E40AF", kristin:"#DB2777", jenna:"#0D9488", cjr:"#EA580C", samuel:"#6D28D9",
-  hank:"#DC2626", molly:"#D97706", bellarose:"#F472B6", gracieann:"#0EA5E9", sophia:"#16A34A",
+  hank:"#DC2626", molly:"#A16207", bellarose:"#C026D3", gracieann:"#0EA5E9", sophia:"#16A34A",
   gus:"#18181B", graham:"#7C4A2D", lola:"#FFFFFF" };
 
 /* ============================================================
@@ -453,31 +463,50 @@ function rulePlace(entityId, date){
 }
 
 // Build a resolver bound to the current placements + home-base map.
+// INDEXED BY ENTITY at construction: pins and journeys become O(1) date lookups
+// and trips only scan that one entity's trips. The previous version scanned the
+// whole placements array three times per call, and dayPlacement probes 11 hours -
+// so a single Year render (13 entities x 42 cells x 12 months) cost roughly
+// 216,000 array scans. Build this ONCE per placements change, never in a render.
 function makeResolver(placements, homeOf){
   const list = placements || [];
+  const byEntity = {};                 // entityId -> { pins:{ymd:place}, journeys:{ymd:j}, trips:[] }
+  const allTrips = [];
+  function bucket(id){
+    return byEntity[id] || (byEntity[id] = { pins:{}, journeys:{}, trips:[] });
+  }
+  for(const p of list){
+    if(p.type === "trip"){
+      allTrips.push(p);
+      const ids = p.entityIds || (p.entityId ? [p.entityId] : []);
+      for(const id of ids) bucket(id).trips.push(p);
+    } else if(p.type === "pin" && p.entityId && p.date){
+      bucket(p.entityId).pins[strToYmd(p.date)] = p.place;
+    } else if(p.type === "journey" && p.entityId && p.date){
+      bucket(p.entityId).journeys[strToYmd(p.date)] = p;
+    }
+  }
+
   function journeyOf(entityId, date){
-    const key = ymdNum(date);
-    for(const j of list) if(j.type==="journey" && j.entityId===entityId && strToYmd(j.date)===key) return j;
-    return null;
+    const b = byEntity[entityId]; if(!b) return null;
+    return b.journeys[ymdNum(date)] || null;
   }
   function pinPlace(entityId, date){
-    const key = ymdNum(date);
-    for(const p of list) if(p.type==="pin" && p.entityId===entityId && strToYmd(p.date)===key) return p.place;
-    return null;
+    const b = byEntity[entityId]; if(!b) return null;
+    const v = b.pins[ymdNum(date)];
+    return v === undefined ? null : v;
   }
   function tripPlace(entityId, date){
+    const b = byEntity[entityId]; if(!b) return null;
     const key = ymdNum(date);
-    for(const t of list){
-      if(t.type!=="trip") continue;
-      const ids = t.entityIds || (t.entityId ? [t.entityId] : []);
-      if(!ids.includes(entityId)) continue;
-      if(key>=strToYmd(t.start) && key<=strToYmd(t.end)) return t.place;
+    for(const t of b.trips){
+      if(key >= strToYmd(t.start) && key <= strToYmd(t.end)) return t.place;
     }
     return null;
   }
   function anyTrip(date){
     const key = ymdNum(date);
-    return list.some(t => t.type==="trip" && key>=strToYmd(t.start) && key<=strToYmd(t.end));
+    return allTrips.some(t => key >= strToYmd(t.start) && key <= strToYmd(t.end));
   }
   function placementAt(entityId, date){
     const h = date.getHours();
@@ -495,23 +524,50 @@ function makeResolver(placements, homeOf){
     }
     return rulePlace(entityId, date);
   }
+  // Memoized: each (entity, day) is computed once for the life of this resolver.
+  // The resolver is rebuilt whenever placements or home bases change, so the cache
+  // invalidates itself - no stale reads. This is what makes Month/Year cheap, since
+  // each uncached call probes 11 hours.
+  const dayCache = new Map();
   function dayPlacement(entityId, date){
+    const key = entityId + ":" + ymdNum(date);
+    const hit = dayCache.get(key);
+    if(hit !== undefined) return hit;
+    const y = date.getFullYear(), m = date.getMonth(), d = date.getDate();
     const counts = {};
     for(let h=8; h<=18; h++){
-      const probe = new Date(date.getFullYear(), date.getMonth(), date.getDate(), h);
-      const loc = placementAt(entityId, probe);
+      const loc = placementAt(entityId, new Date(y, m, d, h));
       counts[loc] = (counts[loc]||0) + 1;
     }
     const home = homeOf[entityId];
-    let best = placementAt(entityId, new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12));
+    let best = placementAt(entityId, new Date(y, m, d, 12));
     let bestN = -1;
     for(const [loc,n] of Object.entries(counts)){
+      // Bias toward surfacing an away-place even when home dominates the hours.
       const weight = loc===home ? n*0.5 : n;
       if(weight > bestN){ bestN = weight; best = loc; }
     }
+    dayCache.set(key, best);
     return best;
   }
-  return { journeyOf, placementAt, dayPlacement, anyTrip };
+
+  // Who is away from their own home base on a given day, in roster order.
+  // Powers the exceptions summary line; cached for the same reason.
+  const awayCache = new Map();
+  function awayOn(entityIds, date){
+    const key = ymdNum(date);
+    const hit = awayCache.get(key);
+    if(hit !== undefined) return hit;
+    const out = [];
+    for(const id of entityIds){
+      const loc = dayPlacement(id, date);
+      if(loc !== homeOf[id]) out.push({ id, place: loc, journey: journeyOf(id, date) });
+    }
+    awayCache.set(key, out);
+    return out;
+  }
+
+  return { journeyOf, placementAt, dayPlacement, anyTrip, awayOn };
 }
 
 /* ============================================================ LOCAL STORAGE ============================================================ */
@@ -1369,6 +1425,68 @@ function Login({ store, toast }){
   );
 }
 
+/* ============================================================
+   EXCEPTIONS LINE - "who is away", in words, above every view.
+   The cheapest answer to the app's core question: it needs no chart at all, and
+   it stays readable when a dense view is not. Groups people who are in the SAME
+   place so a couple's trip reads as one fact, not two.
+   ============================================================ */
+function ExceptionsLine({ entities, cursor, ctx }){
+  const info = useMemo(() => {
+    const away = ctx.awayOn(entities.map(e => e.id), cursor);
+    if(!away.length) return { count:0, groups:[] };
+    const nameOf = (id) => { const e = entities.find(x => x.id === id); return e ? firstName(e.name) : id; };
+    // Group by destination; a journey is its own group (the person is mid-move).
+    const byKey = new Map();
+    for(const a of away){
+      const key = a.journey ? ("j:" + a.id) : ("p:" + a.place);
+      if(!byKey.has(key)) byKey.set(key, { place:a.place, journey:a.journey, ids:[] });
+      byKey.get(key).ids.push(a.id);
+    }
+    const groups = [...byKey.values()].map(g => {
+      // When are they back? Scan forward for the first day this group is home again.
+      let back = null;
+      const probe = g.ids[0];
+      for(let i=1; i<=60; i++){
+        const d = addDays(cursor, i);
+        if(ctx.dayPlacement(probe, d) === ctx.homeOf[probe]){ back = d; break; }
+      }
+      return { ...g, names: g.ids.map(nameOf), back };
+    });
+    return { count: away.length, groups };
+  }, [entities, cursor, ctx]);
+
+  if(info.count === 0){
+    return <p className="wa-exc wa-exc--calm">Everyone's home.</p>;
+  }
+  const fmtBack = (d) => {
+    if(!d) return null;
+    const diff = Math.round((d - new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate())) / 86400000);
+    if(diff <= 7) return "back " + DAY_NAMES[d.getDay()];
+    return "back " + MONTH_ABBR[d.getMonth()] + " " + d.getDate();
+  };
+  return (
+    <p className="wa-exc">
+      <b>{info.count} away:</b>{" "}
+      {info.groups.map((g, i) => {
+        const who = g.names.length > 2
+          ? g.names.slice(0, -1).join(", ") + " + " + g.names[g.names.length - 1]
+          : g.names.join(" + ");
+        const where = g.journey
+          ? ctx.placeOf(g.journey.from).name + " → " + ctx.placeOf(g.journey.to).name
+          : ctx.placeOf(g.place).name;
+        const back = g.journey ? null : fmtBack(g.back);
+        return (
+          <span key={i} className="wa-exc__grp">
+            {i > 0 && <span className="wa-exc__sep"> &middot; </span>}
+            {who} <span className="wa-exc__at">({where}{back ? ", " + back : ""})</span>
+          </span>
+        );
+      })}
+    </p>
+  );
+}
+
 /* ============================================================ APP SHELL ============================================================ */
 const VIEWS = ["Now","Day","Week","Month","Year"];
 
@@ -1542,6 +1660,8 @@ function App(){
           <button className="wa-iconbtn" onClick={()=>setSettingsOpen(true)} aria-label="Settings">{"⚙"}</button>
         </div>
       </header>
+
+      <ExceptionsLine entities={entities} cursor={cursor} ctx={ctx} />
 
       <main className="wa-main">
         {view==="Now" && <NowBoard entities={entities} cursor={cursor} setCursor={setCursor} isLive={isLive} ctx={ctx} />}
