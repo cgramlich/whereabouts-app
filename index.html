@@ -210,6 +210,28 @@
 .wa-legend{ display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:16px; padding:12px 16px; background:var(--surface); border:1px solid var(--line); border-radius:14px; }
 .wa-legend__item{ display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
 .wa-hint{ font-size:12.5px; color:var(--muted); line-height:1.5; }
+/* Storyline view */
+.wa-story{ background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  box-shadow:0 1px 2px rgba(25,33,43,.04); display:flex; overflow:hidden; }
+.wa-story__labels{ width:96px; flex:none; position:relative; border-right:1px solid var(--surface-2); }
+.wa-story__lbl{ position:absolute; left:12px; right:6px; font-size:11px; font-weight:600;
+  color:var(--muted); line-height:1.15; }
+.wa-story__scroll{ flex:1; overflow-x:auto; }
+.wa-story__dn{ font-size:10px; fill:var(--muted); font-family:var(--body); }
+.wa-story__dd{ font-size:13px; fill:var(--ink); font-family:var(--display); font-weight:700; }
+.wa-story__rule{ stroke:var(--surface-2); stroke-width:1; }
+.wa-story__halo{ fill:none; stroke:var(--surface); stroke-width:7.5; stroke-linecap:round; stroke-linejoin:round; }
+.wa-story__base{ fill:none; stroke:#CAD1DA; stroke-width:2.5; stroke-linecap:round; stroke-linejoin:round; }
+.wa-story__mono{ font-family:var(--mono); font-size:8px; font-weight:600; }
+.wa-story__more{ position:absolute; }
+.wa-storywrap{ position:relative; }
+.wa-storywrap .wa-story__more{ position:static; margin:10px 4px 0; font-size:12.5px; color:var(--muted); }
+.wa-storytoggle{ display:flex; gap:4px; background:var(--surface-2); padding:3px; border-radius:9px;
+  margin:0 0 12px; width:fit-content; }
+.wa-storytoggle button{ border:none; background:transparent; color:var(--muted); font-family:var(--body);
+  font-weight:600; font-size:12.5px; padding:6px 14px; border-radius:7px; cursor:pointer; }
+.wa-storytoggle button.is-on{ background:var(--ink); color:#fff; }
+
 /* Exceptions line - "who is away", in words, above every view */
 .wa-exc{ margin:14px 4px 0; font-size:13.5px; color:var(--ink); line-height:1.65; }
 .wa-exc b{ font-weight:700; }
@@ -312,12 +334,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.7.0";
+const APP_VERSION = "0.8.0";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-01.7";
+const BUILD = "2026-08-01.8";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -1426,6 +1448,249 @@ function Login({ store, toast }){
 }
 
 /* ============================================================
+   STORYLINE VIEW - the signature visualization.
+   ------------------------------------------------------------
+   Each person is a LINE flowing left to right through time.
+   - y = PLACE (bands), first place in placeOrder at the BOTTOM, so altitude reads
+     as "further from home". Binding y to place is the key simplification: classic
+     storyline layout has to choose the vertical order of groups, which is NP-hard.
+     Ours is fixed, so lines cross exactly when people actually swap places.
+   - A day someone stays put is a FLAT run. A travel day is a DIAGONAL inside that
+     day's column - the Marey/Ibry graphical-timetable convention, where horizontal
+     means stopped and diagonal means moving.
+   - Color only appears when someone is AWAY from their own home base; at home the
+     line is quiet slate. So a calm week renders nearly monochrome, and the amount
+     of colored ink IS how scattered the family is.
+   - People in the same place occupy adjacent slots, so travelling together reads
+     as one thick band.
+   ============================================================ */
+// GUTTER is small because the place labels live in a separate sticky DOM column
+// beside the scrollable SVG, not inside it.
+const ST = { LANE:20, BAND_GAP:18, PAD_TOP:34, PAD_BOT:14, COL_W:78, GUTTER:10 };
+
+function storySegment(pts, xs, hold, k, a, b){
+  // One continuous path across days a..b: flat (or diagonal) inside each day
+  // column, eased S-curve between columns.
+  let d = `M ${xs[a]-hold} ${pts[a].y1} L ${xs[a]+hold} ${pts[a].y2}`;
+  for(let t=a; t<b; t++){
+    const x1 = xs[t]+hold, x2 = xs[t+1]-hold;
+    const yA = pts[t].y2, yB = pts[t+1].y1;
+    d += (yA === yB) ? ` L ${x2} ${yB}` : ` C ${x1+k} ${yA} ${x2-k} ${yB} ${x2} ${yB}`;
+    d += ` L ${xs[t+1]+hold} ${pts[t+1].y2}`;
+  }
+  return d;
+}
+
+function StoryView({ entities, days, ctx, onPickDay, onPick }){
+  const layout = useMemo(() => {
+    const today = new Date();
+    // --- resolve the window once ---
+    const grid = {}, jour = {};
+    entities.forEach(e => {
+      grid[e.id] = days.map(d => ctx.dayPlacement(e.id, d));
+      jour[e.id] = days.map(d => ctx.journeyOf(e.id, d));
+    });
+    // --- movers only: hide anyone who sat at home all window and never moved ---
+    const isAwayAt = (id, t) => {
+      const j = jour[id][t];
+      if(j) return j.from !== ctx.homeOf[id] || j.to !== ctx.homeOf[id];
+      return grid[id][t] !== ctx.homeOf[id];
+    };
+    const interesting = entities.filter(e => {
+      const moved = new Set(grid[e.id]).size > 1 || jour[e.id].some(Boolean);
+      const away  = days.some((_, t) => isAwayAt(e.id, t));
+      return moved || away;
+    });
+    const hidden = entities.length - interesting.length;
+    if(!interesting.length) return { empty:true, hidden, H:80 };
+
+    // --- which place bands are occupied ---
+    const occ = new Set();
+    interesting.forEach(e => days.forEach((_, t) => {
+      const j = jour[e.id][t];
+      if(j){ occ.add(j.from); occ.add(j.to); } else occ.add(grid[e.id][t]);
+    }));
+    let bands = ctx.placeOrder.filter(p => occ.has(p));
+    occ.forEach(p => { if(!bands.includes(p)) bands.push(p); });
+
+    // --- lane count per band = peak concurrent occupancy ---
+    const lanes = {};
+    bands.forEach(p => {
+      let mx = 1;
+      days.forEach((_, t) => {
+        let c = 0;
+        interesting.forEach(e => {
+          const j = jour[e.id][t];
+          if(j){ if(j.from === p || j.to === p) c++; }
+          else if(grid[e.id][t] === p) c++;
+        });
+        if(c > mx) mx = c;
+      });
+      lanes[p] = mx;
+    });
+
+    // --- band tops; render top-down but with placeOrder[0] at the BOTTOM ---
+    const topDown = bands.slice().reverse();
+    const bandTop = {};
+    let y = ST.PAD_TOP;
+    topDown.forEach(p => { bandTop[p] = y; y += lanes[p]*ST.LANE + ST.BAND_GAP; });
+    const H = y - ST.BAND_GAP + ST.PAD_BOT;
+
+    // --- slot assignment: one forward barycenter sweep ---
+    // Sorting each band's members by where they were the previous day keeps lines
+    // from needlessly crossing: someone arriving from a band above enters at the
+    // top slot, someone from below enters at the bottom.
+    const rosterIdx = {}; entities.forEach((e,i) => { rosterIdx[e.id] = i; });
+    const pos = {}; interesting.forEach(e => { pos[e.id] = []; });
+    let prev = null;
+    days.forEach((_, t) => {
+      const cur = {};
+      bands.forEach(p => {
+        const members = interesting.filter(e => {
+          const j = jour[e.id][t];
+          if(j) return j.from === p || j.to === p;
+          return grid[e.id][t] === p;
+        });
+        members.sort((a,b) => {
+          if(!prev) return rosterIdx[a.id] - rosterIdx[b.id];
+          const pa = prev[a.id] !== undefined ? prev[a.id] : bandTop[p];
+          const pb = prev[b.id] !== undefined ? prev[b.id] : bandTop[p];
+          return pa - pb || rosterIdx[a.id] - rosterIdx[b.id];
+        });
+        members.forEach((e, k) => {
+          const yy = bandTop[p] + k*ST.LANE + ST.LANE/2;
+          const j = jour[e.id][t];
+          if(!pos[e.id][t]) pos[e.id][t] = {};
+          if(j){
+            if(j.from === p) pos[e.id][t].y1 = yy;
+            if(j.to === p)   pos[e.id][t].y2 = yy;
+          } else { pos[e.id][t].y1 = yy; pos[e.id][t].y2 = yy; }
+          cur[e.id] = yy;
+        });
+      });
+      prev = cur;
+    });
+    // Safety: fill any gap so a path never hits undefined.
+    interesting.forEach(e => days.forEach((_, t) => {
+      const p = pos[e.id][t] || (pos[e.id][t] = {});
+      if(p.y1 === undefined) p.y1 = p.y2 !== undefined ? p.y2 : ST.PAD_TOP;
+      if(p.y2 === undefined) p.y2 = p.y1;
+    }));
+
+    // --- away runs (contiguous stretches of colored line) ---
+    const runs = {};
+    interesting.forEach(e => {
+      const r = []; let start = null;
+      days.forEach((_, t) => {
+        const away = isAwayAt(e.id, t);
+        if(away && start === null) start = t;
+        if((!away || t === days.length-1) && start !== null){
+          r.push([start, away ? t : t-1]);
+          start = null;
+        }
+      });
+      runs[e.id] = r;
+    });
+
+    const xs = days.map((_, t) => ST.GUTTER + t*ST.COL_W + ST.COL_W/2);
+    const W = ST.GUTTER + days.length*ST.COL_W + 16;
+    const todayIdx = days.findIndex(d => sameDay(d, today));
+    return { empty:false, hidden, interesting, grid, jour, bands, topDown, lanes,
+             bandTop, pos, runs, xs, W, H, todayIdx, isAwayAt };
+  }, [entities, days, ctx]);
+
+  if(layout.empty){
+    return (
+      <div className="wa-card">
+        <p className="wa-hint" style={{textAlign:"center",padding:"28px 0"}}>
+          Everyone was in their home base all week - nothing moved.
+        </p>
+      </div>
+    );
+  }
+
+  const { interesting, bands, topDown, lanes, bandTop, pos, runs, xs, W, H, todayIdx, jour, grid } = layout;
+  const hold = ST.COL_W*0.34, k = ST.COL_W*0.22;
+
+  return (
+    <div className="wa-story">
+      <div className="wa-story__labels" style={{height:H}}>
+        {topDown.map(p => (
+          <span key={p} className="wa-story__lbl"
+            style={{ top: bandTop[p] + (lanes[p]*ST.LANE)/2 - 8 }}>
+            {ctx.placeOf(p).name}
+          </span>
+        ))}
+      </div>
+      <div className="wa-story__scroll">
+        <svg width={W} height={H} role="img"
+             aria-label={"Where each person is across " + days.length + " days"}>
+          {/* day columns + headers */}
+          {days.map((d, t) => (
+            <g key={t} onClick={()=>onPickDay && onPickDay(d)} style={{cursor:"pointer"}}>
+              <rect x={xs[t]-ST.COL_W/2} y={0} width={ST.COL_W} height={H}
+                    fill={t===todayIdx ? "rgba(25,33,43,.045)" : "transparent"} />
+              <text x={xs[t]} y={15} textAnchor="middle" className="wa-story__dn">{DAY_NAMES[d.getDay()]}</text>
+              <text x={xs[t]} y={28} textAnchor="middle"
+                    className={"wa-story__dd" + (t===todayIdx ? " is-today" : "")}>{d.getDate()}</text>
+            </g>
+          ))}
+          {/* band baselines */}
+          {topDown.map(p => (
+            <line key={p} x1={ST.GUTTER-8} x2={W-8}
+                  y1={bandTop[p] + lanes[p]*ST.LANE + ST.BAND_GAP/2 - 2}
+                  y2={bandTop[p] + lanes[p]*ST.LANE + ST.BAND_GAP/2 - 2}
+                  className="wa-story__rule" />
+          ))}
+          {/* the lines: a quiet base for the whole week, colored only where away */}
+          {interesting.map(e => {
+            const pts = pos[e.id];
+            const full = storySegment(pts, xs, hold, k, 0, days.length-1);
+            return (
+              <g key={e.id}>
+                <path d={full} className="wa-story__halo" />
+                <path d={full} className="wa-story__base" />
+                {runs[e.id].map(([a,b], i) => (
+                  <path key={i} d={storySegment(pts, xs, hold, k, a, b)}
+                        fill="none" stroke={e.color} strokeWidth="3"
+                        strokeLinecap="round" strokeLinejoin="round" />
+                ))}
+                {/* identity marker at the start of each away stretch */}
+                {runs[e.id].map(([a], i) => {
+                  const cy = pts[a].y1, cx = xs[a]-hold;
+                  const isPet = e.kind === "pet";
+                  const txt = readableText(e.color);
+                  return (
+                    <g key={"m"+i} onClick={()=>onPick && onPick(e.id, days[a])} style={{cursor:"pointer"}}>
+                      {isPet
+                        ? <rect x={cx-8} y={cy-8} width="16" height="16" rx="5" fill={e.color}
+                                stroke={(e.color||"").toUpperCase()==="#FFFFFF" ? "#C7CDD6" : "none"} />
+                        : <circle cx={cx} cy={cy} r="8" fill={e.color}
+                                  stroke={(e.color||"").toUpperCase()==="#FFFFFF" ? "#C7CDD6" : "none"} />}
+                      <text x={cx} y={cy} dy="0.32em" textAnchor="middle"
+                            className="wa-story__mono" fill={txt}>{e.short}</text>
+                    </g>
+                  );
+                })}
+                {/* fat invisible hit target - a 3px line is untappable */}
+                <path d={full} fill="none" stroke="transparent" strokeWidth="22"
+                      pointerEvents="stroke" style={{cursor:"pointer"}}
+                      onClick={()=>onPick && onPick(e.id, days[0])}>
+                  <title>{e.name}</title>
+                </path>
+              </g>
+            );
+          })}
+        </svg>
+      </div>
+      {layout.hidden > 0 && (
+        <p className="wa-story__more">{layout.hidden} {layout.hidden===1?"other was":"others were"} in their home base all week.</p>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
    EXCEPTIONS LINE - "who is away", in words, above every view.
    The cheapest answer to the app's core question: it needs no chart at all, and
    it stays readable when a dense view is not. Groups people who are in the SAME
@@ -1496,6 +1761,8 @@ function App(){
   const [cursor,setCursor]=useState(new Date());
   const [tick,setTick]=useState(0);
   const [settingsOpen,setSettingsOpen]=useState(false);
+  const [weekMode,setWeekMode]=useState(()=>lsGet("weekMode","story"));
+  useEffect(()=>{ lsSet("weekMode", weekMode); },[weekMode]);
   const [placeSheet,setPlaceSheet]=useState(null);   // { seed } | null
   const [personEdit,setPersonEdit]=useState(null);   // entity | {} | null
   const [placeEdit,setPlaceEdit]=useState(null);     // place | {} | null
@@ -1666,7 +1933,19 @@ function App(){
       <main className="wa-main">
         {view==="Now" && <NowBoard entities={entities} cursor={cursor} setCursor={setCursor} isLive={isLive} ctx={ctx} />}
         {view==="Day" && <DayView entities={entities} cursor={cursor} ctx={ctx} />}
-        {view==="Week" && <WeekView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
+        {view==="Week" && (
+          <div className="wa-storywrap">
+            <div className="wa-storytoggle">
+              <button className={weekMode==="story"?"is-on":""} onClick={()=>setWeekMode("story")}>Threads</button>
+              <button className={weekMode==="table"?"is-on":""} onClick={()=>setWeekMode("table")}>Table</button>
+            </div>
+            {weekMode==="story"
+              ? <StoryView entities={entities}
+                  days={Array.from({length:7}).map((_,i)=>addDays(startOfWeek(cursor), i))}
+                  ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} onPick={ctx.onPick} />
+              : <WeekView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
+          </div>
+        )}
         {view==="Month" && <MonthView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
         {view==="Year" && <YearView entities={entities} cursor={cursor} ctx={ctx} onPickMonth={(m)=>{ setCursor(new Date(cursor.getFullYear(), m, 1)); setView("Month"); }} />}
       </main>
