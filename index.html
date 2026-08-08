@@ -247,6 +247,23 @@
 .wa-map__offrow{ display:flex; align-items:center; gap:10px; padding:4px 0; }
 .wa-map__offwho{ display:flex; gap:5px; flex-wrap:wrap; }
 .wa-map__offplace{ font-size:13px; color:var(--ink); font-weight:500; }
+.wa-map__tap{ cursor:zoom-in; }
+/* Full-screen map: nothing but the map, in either orientation. 100dvh tracks the
+   real viewport on mobile as browser chrome hides and shows. */
+.wa-mapfull{ position:fixed; inset:0; z-index:80; background:var(--surface);
+  display:flex; align-items:center; justify-content:center; cursor:zoom-out;
+  padding:calc(env(safe-area-inset-top) + 6px) calc(env(safe-area-inset-right) + 6px)
+          calc(env(safe-area-inset-bottom) + 6px) calc(env(safe-area-inset-left) + 6px); }
+.wa-mapfull .wa-map__svg{ width:100%; height:100%; max-width:100%; max-height:100%; }
+.wa-mapfull__x{ position:absolute; top:calc(env(safe-area-inset-top) + 10px);
+  right:calc(env(safe-area-inset-right) + 12px); width:40px; height:40px; border-radius:50%;
+  border:1px solid var(--line); background:var(--surface); color:var(--muted);
+  font-size:22px; line-height:1; cursor:pointer; }
+.wa-mapfull__off{ position:absolute; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 8px);
+  text-align:center; margin:0; font-size:12.5px; color:var(--muted); pointer-events:none; }
+@media (min-width:100px) and (orientation:landscape){
+  .wa-mapfull{ padding:6px; }
+}
 
 /* Routine editor - a day-override row */
 .wa-dayov{ display:grid; grid-template-columns:1fr 1.2fr .9fr .9fr 1.2fr auto; gap:5px;
@@ -382,12 +399,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.12.0";
+const APP_VERSION = "0.12.1";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-08.1";
+const BUILD = "2026-08-08.2";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -1829,6 +1846,17 @@ const PLACE_COORDS = {
 };
 
 function MapToday({ entities, cursor, ctx, onPick }){
+  const [full,setFull] = useState(false);
+  // Escape closes it, and while it is open nothing behind should scroll.
+  useEffect(() => {
+    if(!full) return;
+    const onKey = (e) => { if(e.key === "Escape") setFull(false); };
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = prev; window.removeEventListener("keydown", onKey); };
+  }, [full]);
+
   const L = useMemo(() => {
     // Group everyone by where they are right now.
     const byPlace = new Map();
@@ -1886,7 +1914,9 @@ function MapToday({ entities, cursor, ctx, onPick }){
     const ring = (e.color||"").toUpperCase()==="#FFFFFF" ? "#C7CDD6"
                : (m.state === "unusual" ? "none" : rgba(e.color, 0.75));
     return (
-      <g key={key} onClick={()=>onPick && onPick(e.id, cursor)} style={{cursor:"pointer"}}>
+      // stopPropagation so tapping a person opens their placement rather than
+      // expanding the map.
+      <g key={key} onClick={(ev)=>{ ev.stopPropagation(); onPick && onPick(e.id, cursor); }} style={{cursor:"pointer"}}>
         {isPet
           ? <rect x={x-10} y={y-10} width="20" height="20" rx="6" fill={fill} stroke={ring} strokeWidth="1.5" />
           : <circle cx={x} cy={y} r="10" fill={fill} stroke={ring} strokeWidth="1.5" />}
@@ -1896,30 +1926,58 @@ function MapToday({ entities, cursor, ctx, onPick }){
     );
   };
 
+  const svg = (
+    <svg viewBox={`0 0 ${US_VIEW.w} ${US_VIEW.h}`} className="wa-map__svg"
+         preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="Where the family is today, on a map of the United States">
+      <path d={US_PATH} className="wa-map__land" vectorEffect="non-scaling-stroke" />
+      {L.placed.map(g => (
+        <g key={g.pid}>
+          {(Math.hypot(g.x-g.cx, g.y-g.cy) > 4) &&
+            <line x1={g.cx} y1={g.cy} x2={g.x} y2={g.y} className="wa-map__leader" />}
+          <circle cx={g.cx} cy={g.cy} r="2.5" className="wa-map__pin" />
+          <text x={g.x} y={g.y - (Math.ceil(g.members.length/3)*11) - 6}
+                textAnchor="middle" className="wa-map__city">{g.place.name}</text>
+          {g.members.map((m, i) => {
+            const n = g.members.length, cols = Math.min(3, n);
+            const rows = Math.ceil(n/cols);
+            const col = i % cols, row = Math.floor(i/cols);
+            const inRow = Math.min(cols, n - row*cols);
+            const x = g.x + (col - (inRow-1)/2) * 22;
+            const y = g.y + (row - (rows-1)/2) * 22;
+            return tokenAt(m, x, y, m.e.id);
+          })}
+        </g>
+      ))}
+    </svg>
+  );
+
+  // FULL-SCREEN: just the map. Rotating to landscape gives it far more room, and
+  // preserveAspectRatio keeps it centred and undistorted in either orientation.
+  // Uses a fixed overlay rather than the Fullscreen API, which iOS Safari does not
+  // support for arbitrary elements - the overlay behaves the same everywhere.
+  if(full){
+    return (
+      <div className="wa-mapfull" onClick={()=>setFull(false)}>
+        {svg}
+        {/* Anyone abroad would simply VANISH here, which would misread as "not
+            travelling". One quiet line keeps that honest without adding chrome. */}
+        {L.offMap.length > 0 && (
+          <p className="wa-mapfull__off">
+            {L.offMap.map(g => g.members.map(m => firstName(m.e.name)).join(" + ") + " in " + g.place.name).join("  ·  ")}
+          </p>
+        )}
+        <button className="wa-mapfull__x" aria-label="Close full screen"
+                onClick={(e)=>{ e.stopPropagation(); setFull(false); }}>{"×"}</button>
+      </div>
+    );
+  }
+
   return (
     <div className="wa-map">
-      <svg viewBox={`0 0 ${US_VIEW.w} ${US_VIEW.h}`} className="wa-map__svg" role="img"
-           aria-label="Where the family is today, on a map of the United States">
-        <path d={US_PATH} className="wa-map__land" vectorEffect="non-scaling-stroke" />
-        {L.placed.map(g => (
-          <g key={g.pid}>
-            {(Math.hypot(g.x-g.cx, g.y-g.cy) > 4) &&
-              <line x1={g.cx} y1={g.cy} x2={g.x} y2={g.y} className="wa-map__leader" />}
-            <circle cx={g.cx} cy={g.cy} r="2.5" className="wa-map__pin" />
-            <text x={g.x} y={g.y - (Math.ceil(g.members.length/3)*11) - 6}
-                  textAnchor="middle" className="wa-map__city">{g.place.name}</text>
-            {g.members.map((m, i) => {
-              const n = g.members.length, cols = Math.min(3, n);
-              const rows = Math.ceil(n/cols);
-              const col = i % cols, row = Math.floor(i/cols);
-              const inRow = Math.min(cols, n - row*cols);
-              const x = g.x + (col - (inRow-1)/2) * 22;
-              const y = g.y + (row - (rows-1)/2) * 22;
-              return tokenAt(m, x, y, m.e.id);
-            })}
-          </g>
-        ))}
-      </svg>
+      <div className="wa-map__tap" onClick={()=>setFull(true)} title="Tap to expand">
+        {svg}
+      </div>
       {L.offMap.length > 0 && (
         <div className="wa-map__off">
           <p className="wa-map__offh">Not on this map</p>
@@ -1933,6 +1991,7 @@ function MapToday({ entities, cursor, ctx, onPick }){
           ))}
         </div>
       )}
+      <p className="wa-hint" style={{textAlign:"center",margin:"8px 0 2px"}}>Tap the map for full screen. Rotate for a bigger view.</p>
     </div>
   );
 }
