@@ -261,6 +261,13 @@
   font-size:22px; line-height:1; cursor:pointer; }
 .wa-mapfull__off{ position:absolute; left:0; right:0; bottom:calc(env(safe-area-inset-bottom) + 8px);
   text-align:center; margin:0; font-size:12.5px; color:var(--muted); pointer-events:none; }
+/* touch-action:none so the browser hands us the pinch instead of trying to
+   scroll/zoom the page with it. */
+.wa-map__svg--zoom{ touch-action:none; cursor:grab; }
+.wa-mapfull__reset{ position:absolute; top:calc(env(safe-area-inset-top) + 10px);
+  left:calc(env(safe-area-inset-left) + 12px); border:1px solid var(--line);
+  background:var(--surface); color:var(--muted); font-family:var(--body); font-size:12.5px;
+  font-weight:600; padding:8px 12px; border-radius:999px; cursor:pointer; }
 @media (min-width:100px) and (orientation:landscape){
   .wa-mapfull{ padding:6px; }
 }
@@ -399,12 +406,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.12.1";
+const APP_VERSION = "0.12.2";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-08.2";
+const BUILD = "2026-08-08.4";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -1847,6 +1854,117 @@ const PLACE_COORDS = {
 
 function MapToday({ entities, cursor, ctx, onPick }){
   const [full,setFull] = useState(false);
+
+  /* --- pinch / pan / wheel zoom, scoped to the full-screen map ---------------
+     The app's viewport is user-scalable=no so the PWA feels native, which kills
+     browser pinch-zoom. Rather than unlock zooming for the whole app, the map
+     handles the gesture itself and applies it to an SVG transform group.
+     Everything is computed in viewBox units: one screen pixel is 1/fit viewBox
+     units, where `fit` is the preserveAspectRatio="meet" scale. --------------- */
+  const MIN_K = 1, MAX_K = 10;
+  const [z,setZ] = useState({ k:1, x:0, y:0 });
+  const zRef = useRef(z); zRef.current = z;
+  const svgRef = useRef(null);
+  const ptrs = useRef(new Map());
+  const pinch = useRef(null);
+  const moved = useRef(false);
+
+  const resetZoom = useCallback(()=> setZ({ k:1, x:0, y:0 }), []);
+  useEffect(()=>{ if(!full) resetZoom(); }, [full, resetZoom]);
+
+  // Screen px -> viewBox units, and where a screen point sits in viewBox space.
+  function fitInfo(){
+    const el = svgRef.current;
+    if(!el) return { fit:1, ox:0, oy:0, r:{left:0, top:0} };
+    const r = el.getBoundingClientRect();
+    const fit = Math.min(r.width/US_VIEW.w, r.height/US_VIEW.h);
+    return { fit, ox:(r.width - US_VIEW.w*fit)/2, oy:(r.height - US_VIEW.h*fit)/2, r };
+  }
+  function toVB(cx, cy){
+    const { fit, ox, oy, r } = fitInfo();
+    return { x:(cx - r.left - ox)/fit, y:(cy - r.top - oy)/fit };
+  }
+  function clamp(next){
+    const k = Math.max(MIN_K, Math.min(MAX_K, next.k));
+    // Keep the drawing covering the frame: at k=1 it must sit flush.
+    const maxX = 0, minX = US_VIEW.w*(1-k);
+    const maxY = 0, minY = US_VIEW.h*(1-k);
+    return { k, x:Math.max(minX, Math.min(maxX, next.x)), y:Math.max(minY, Math.min(maxY, next.y)) };
+  }
+  // Scale about a fixed anchor so the point under the fingers stays put.
+  function zoomAbout(k1, anchor, base){
+    const ratio = k1 / base.k;
+    return clamp({ k:k1, x:anchor.x - (anchor.x - base.x)*ratio, y:anchor.y - (anchor.y - base.y)*ratio });
+  }
+
+  function onPointerDown(e){
+    try{ e.currentTarget.setPointerCapture(e.pointerId); }catch(_){}
+    ptrs.current.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    moved.current = false;
+    if(ptrs.current.size === 2){
+      const [a,b] = [...ptrs.current.values()];
+      pinch.current = {
+        dist: Math.hypot(b.x-a.x, b.y-a.y) || 1,
+        mid: toVB((a.x+b.x)/2, (a.y+b.y)/2),
+        midScreen: { x:(a.x+b.x)/2, y:(a.y+b.y)/2 },
+        base: { ...zRef.current },
+      };
+    }
+  }
+  function onPointerMove(e){
+    if(!ptrs.current.has(e.pointerId)) return;
+    const prev = ptrs.current.get(e.pointerId);
+    ptrs.current.set(e.pointerId, { x:e.clientX, y:e.clientY });
+    const { fit } = fitInfo();
+
+    if(ptrs.current.size >= 2 && pinch.current){
+      const [a,b] = [...ptrs.current.values()];
+      const dist = Math.hypot(b.x-a.x, b.y-a.y) || 1;
+      const midScreen = { x:(a.x+b.x)/2, y:(a.y+b.y)/2 };
+      const k1 = pinch.current.base.k * (dist / pinch.current.dist);
+      let next = zoomAbout(k1, pinch.current.mid, pinch.current.base);
+      // two-finger drag pans as well as pinches
+      next = clamp({ k:next.k,
+        x: next.x + (midScreen.x - pinch.current.midScreen.x)/fit,
+        y: next.y + (midScreen.y - pinch.current.midScreen.y)/fit });
+      moved.current = true;
+      setZ(next);
+      return;
+    }
+    if(ptrs.current.size === 1 && zRef.current.k > 1.001){
+      const dx = (e.clientX - prev.x)/fit, dy = (e.clientY - prev.y)/fit;
+      if(Math.abs(e.clientX-prev.x) + Math.abs(e.clientY-prev.y) > 2) moved.current = true;
+      setZ(clamp({ ...zRef.current, x:zRef.current.x + dx, y:zRef.current.y + dy }));
+    }
+  }
+  function onPointerUp(e){
+    ptrs.current.delete(e.pointerId);
+    if(ptrs.current.size < 2) pinch.current = null;
+  }
+  // Attached natively (below) rather than via React's onWheel: React registers
+  // wheel as a PASSIVE listener, so preventDefault() there throws a console error
+  // and does nothing.
+  const onWheel = useCallback((e) => {
+    e.preventDefault();
+    const base = zRef.current;
+    const k1 = base.k * (e.deltaY < 0 ? 1.15 : 1/1.15);
+    moved.current = true;
+    setZ(zoomAbout(k1, toVB(e.clientX, e.clientY), base));
+  }, []);
+  useEffect(() => {
+    const el = svgRef.current;
+    if(!full || !el) return;
+    el.addEventListener("wheel", onWheel, { passive:false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [full, onWheel]);
+  // A tap closes; a pan or pinch must not. Once zoomed in, only the X closes, so
+  // exploring the map never dumps you out of it by accident.
+  function onOverlayClick(){
+    if(moved.current){ moved.current = false; return; }
+    if(zRef.current.k > 1.01) return;
+    setFull(false);
+  }
+
   // Escape closes it, and while it is open nothing behind should scroll.
   useEffect(() => {
     if(!full) return;
@@ -1926,10 +2044,8 @@ function MapToday({ entities, cursor, ctx, onPick }){
     );
   };
 
-  const svg = (
-    <svg viewBox={`0 0 ${US_VIEW.w} ${US_VIEW.h}`} className="wa-map__svg"
-         preserveAspectRatio="xMidYMid meet" role="img"
-         aria-label="Where the family is today, on a map of the United States">
+  const mapContent = (
+    <>
       <path d={US_PATH} className="wa-map__land" vectorEffect="non-scaling-stroke" />
       {L.placed.map(g => (
         <g key={g.pid}>
@@ -1949,6 +2065,14 @@ function MapToday({ entities, cursor, ctx, onPick }){
           })}
         </g>
       ))}
+    </>
+  );
+
+  const svg = (
+    <svg viewBox={`0 0 ${US_VIEW.w} ${US_VIEW.h}`} className="wa-map__svg"
+         preserveAspectRatio="xMidYMid meet" role="img"
+         aria-label="Where the family is today, on a map of the United States">
+      {mapContent}
     </svg>
   );
 
@@ -1958,8 +2082,22 @@ function MapToday({ entities, cursor, ctx, onPick }){
   // support for arbitrary elements - the overlay behaves the same everywhere.
   if(full){
     return (
-      <div className="wa-mapfull" onClick={()=>setFull(false)}>
-        {svg}
+      <div className="wa-mapfull" onClick={onOverlayClick}>
+        <svg ref={svgRef} viewBox={`0 0 ${US_VIEW.w} ${US_VIEW.h}`} className="wa-map__svg wa-map__svg--zoom"
+             preserveAspectRatio="xMidYMid meet" role="img"
+             aria-label="Where the family is today, on a map of the United States"
+             onPointerDown={onPointerDown} onPointerMove={onPointerMove}
+             onPointerUp={onPointerUp} onPointerCancel={onPointerUp}
+             onDoubleClick={(e)=>{ e.stopPropagation(); resetZoom(); }}>
+          {/* Zoom/pan live on a transform group, so the map stays vector-crisp at
+              any magnification instead of being resampled. */}
+          <g transform={`translate(${z.x} ${z.y}) scale(${z.k})`}>{mapContent}</g>
+        </svg>
+        {z.k > 1.01 && (
+          <button className="wa-mapfull__reset" onClick={(e)=>{ e.stopPropagation(); resetZoom(); }}>
+            {Math.round(z.k*10)/10}&times; &middot; reset
+          </button>
+        )}
         {/* Anyone abroad would simply VANISH here, which would misread as "not
             travelling". One quiet line keeps that honest without adding chrome. */}
         {L.offMap.length > 0 && (
@@ -1991,7 +2129,7 @@ function MapToday({ entities, cursor, ctx, onPick }){
           ))}
         </div>
       )}
-      <p className="wa-hint" style={{textAlign:"center",margin:"8px 0 2px"}}>Tap the map for full screen. Rotate for a bigger view.</p>
+      <p className="wa-hint" style={{textAlign:"center",margin:"8px 0 2px"}}>Tap the map for full screen, then pinch to zoom. Rotate for a bigger view.</p>
     </div>
   );
 }
