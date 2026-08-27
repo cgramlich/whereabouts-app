@@ -232,6 +232,40 @@
   font-weight:600; font-size:12.5px; padding:6px 14px; border-radius:7px; cursor:pointer; }
 .wa-storytoggle button.is-on{ background:var(--ink); color:#fff; }
 
+/* Day board - who is where, ranked by what matters */
+.wa-board2{ background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:6px 16px 12px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
+.wa-brow{ display:flex; align-items:center; gap:14px; padding:14px 0;
+  border-bottom:1px solid var(--surface-2); }
+.wa-brow:last-child{ border-bottom:none; }
+.wa-brow__rail{ width:4px; align-self:stretch; border-radius:3px; flex:none; background:var(--line); }
+.wa-brow--r0 .wa-brow__rail{ background:var(--ink); }
+.wa-brow--r1 .wa-brow__rail{ background:#98A2B0; }
+.wa-brow__place{ width:150px; flex:none; }
+.wa-brow__place b{ font-family:var(--display); font-weight:700; font-size:19px; letter-spacing:-.01em;
+  display:block; color:var(--muted); }
+.wa-brow--r0 .wa-brow__place b{ color:var(--ink); font-size:21px; }
+.wa-brow--r1 .wa-brow__place b{ color:#4C5666; }
+.wa-brow__tag{ font-size:11px; color:var(--muted); }
+.wa-brow__who{ display:flex; flex-wrap:wrap; gap:10px 14px; flex:1; }
+.wa-brow__p{ display:flex; flex-direction:column; align-items:center; gap:4px; width:52px;
+  border:none; background:none; padding:0; cursor:pointer; font-family:var(--body); }
+.wa-brow__p span{ font-size:11px; color:var(--muted); line-height:1.1; text-align:center; }
+.wa-brow__p em{ font-size:9px; color:var(--blue); font-style:normal; font-family:var(--mono); }
+
+/* Tideline */
+.wa-tide{ background:var(--surface); border:1px solid var(--line); border-radius:16px;
+  padding:12px 10px 10px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
+.wa-tide__basin{ fill:#E5EAF1; stroke:#C6CED9; stroke-width:1; }
+.wa-tide__line{ stroke:#96A1AF; stroke-width:1.6; }
+.wa-tide__mono{ font-family:var(--mono); font-size:8px; font-weight:600; }
+.wa-tide__tick{ font-family:var(--mono); font-size:9px; fill:var(--muted); }
+
+@media (max-width:680px){
+  .wa-brow{ flex-wrap:wrap; gap:8px; }
+  .wa-brow__place{ width:auto; flex:1; }
+}
+
 /* Today on a map */
 .wa-map{ background:var(--surface); border:1px solid var(--line); border-radius:16px;
   padding:10px; box-shadow:0 1px 2px rgba(25,33,43,.04); }
@@ -406,12 +440,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.12.2";
+const APP_VERSION = "0.13.0";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-08.4";
+const BUILD = "2026-08-26.1";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -439,6 +473,16 @@ const MONTH_NAMES = ["January","February","March","April","May","June","July","A
 const MONTH_ABBR = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 const sameDay = (a,b) => a.getFullYear()===b.getFullYear() && a.getMonth()===b.getMonth() && a.getDate()===b.getDate();
 function startOfWeek(d){ const x=new Date(d); x.setDate(x.getDate()-x.getDay()); x.setHours(0,0,0,0); return x; }
+function monthDays(d){
+  const y=d.getFullYear(), m=d.getMonth(), n=new Date(y,m+1,0).getDate();
+  return Array.from({length:n},(_,i)=>new Date(y,m,i+1));
+}
+function yearDays(d){
+  const y=d.getFullYear(), out=[];
+  for(let m=0;m<12;m++){ const n=new Date(y,m+1,0).getDate();
+    for(let i=1;i<=n;i++) out.push(new Date(y,m,i)); }
+  return out;
+}
 function addDays(d,n){ const x=new Date(d); x.setDate(x.getDate()+n); return x; }
 const ymd = (d) => d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
 function parseYmd(s){ const a=(s||"").split("-").map(Number); return new Date(a[0], (a[1]||1)-1, a[2]||1); }
@@ -1091,150 +1135,6 @@ function Token({ entity, size=34, title, onClick, calm, state }){
     </div>
   );
 }
-function HalfToken({ entity, size=38, title }){
-  const txt = readableText(entity.color);
-  const needsBorder = (entity.color||"").toUpperCase() === "#FFFFFF";
-  return (
-    <div className="wa-token wa-token--half" title={title||entity.name}
-      style={{ width:size, height:size, borderRadius:"50%",
-        background:`linear-gradient(90deg, ${entity.color} 0 50%, ${rgba(entity.color, 0.12)} 50% 100%)`,
-        color:txt, fontSize:size*0.34, border:needsBorder?"1.5px solid #C7CDD6":`1.5px solid ${entity.color}`,
-        textShadow:"0 1px 2px rgba(0,0,0,.4)" }}>
-      {entity.short}
-    </div>
-  );
-}
-
-/* ============================================================ NOW BOARD ============================================================ */
-function NowBoard({ entities, cursor, setCursor, isLive, ctx }){
-  const groups = useMemo(() => {
-    const g = {};
-    entities.forEach((e) => {
-      const jr = ctx.journeyOf(e.id, cursor);
-      if(jr){
-        (g[jr.from] = g[jr.from] || []).push({ e, half:"from", other:jr.to });
-        (g[jr.to] = g[jr.to] || []).push({ e, half:"to", other:jr.from });
-      } else {
-        const loc = ctx.placementAt(e.id, cursor);
-        (g[loc] = g[loc] || []).push({ e, half:null });
-      }
-    });
-    return g;
-  }, [entities, cursor, ctx]);
-
-  const occupied = ctx.placeOrder.filter((l) => groups[l] && groups[l].length);
-  const hour = cursor.getHours();
-  const setHour = (h) => { const x=new Date(cursor); x.setHours(h,0,0,0); setCursor(x); };
-  const ampm = (h) => `${((h+11)%12)+1} ${h<12?"AM":"PM"}`;
-
-  // One-glance headline. Counts only what is UNUSUAL - someone at school or at the
-  // office on a normal day is not news, and counting them buries the real signal.
-  const unusualCount = entities.filter((e) => {
-    if(ctx.journeyOf(e.id, cursor)) return true;            // mid-move always counts
-    return ctx.stateAt(e.id, cursor) === "unusual";
-  }).length;
-  const expectedCount = entities.filter((e) => ctx.stateAt(e.id, cursor) === "expected").length;
-
-  return (
-    <div>
-      <div className="wa-scrub">
-        <div className="wa-scrub__label">
-          <span className="wa-mono">{ampm(hour)}</span>
-          {isLive ? <span className="wa-livedot">live</span> : <span className="wa-scrub__hint">scrubbing</span>}
-        </div>
-        <input className="wa-range" type="range" min="0" max="23" value={hour} onChange={(e)=>setHour(Number(e.target.value))} aria-label="Time of day" />
-        <div className="wa-scrub__ticks"><span>6 AM</span><span>Noon</span><span>6 PM</span><span>Midnight</span></div>
-      </div>
-      <div className="wa-headline">
-        {unusualCount===0
-          ? <span><span className="calm">Everyone's where they should be.</span>
-              {expectedCount>0 && <span> · {expectedCount} away as usual</span>}</span>
-          : <span><b>{unusualCount}</b> {unusualCount===1?"is":"are"} somewhere unusual
-              {expectedCount>0 && <span> · {expectedCount} away as usual</span>}</span>}
-      </div>
-      <div className="wa-board">
-        {occupied.map((locId) => {
-          const loc = ctx.placeOf(locId);
-          const here = groups[locId];
-          const isMetro = loc.kind === "metro";
-          return (
-            <section key={locId} className={"wa-place"+(isMetro?" wa-place--home":"")}>
-              <header className="wa-place__head">
-                <div><h3 className="wa-place__name">{loc.name}</h3><span className="wa-place__addr">{loc.full}</span></div>
-                <span className="wa-place__count">{here.length}</span>
-              </header>
-              <div className="wa-place__tokens">
-                {here.map(({ e, half, other }) => (
-                  <div key={e.id} className="wa-place__person" onClick={()=>ctx.onPick(e.id, cursor)}>
-                    {half
-                      ? <HalfToken entity={e} size={38} title={`${e.name}: ${ctx.placeOf(half==="from"?locId:other).name} → ${ctx.placeOf(half==="from"?other:locId).name}`} />
-                      : <Token entity={e} size={38} state={ctx.stateAt(e.id, cursor)} />}
-                    <span className="wa-place__pname">{firstName(e.name)}</span>
-                    {half==="from" && <span className="wa-place__sub">{"→ " + ctx.placeOf(other).name}</span>}
-                    {half==="to" && <span className="wa-place__sub">{ctx.placeOf(other).name + " →"}</span>}
-                  </div>
-                ))}
-              </div>
-            </section>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ============================================================ DAY VIEW ============================================================ */
-function DayView({ entities, cursor, ctx }){
-  const START=6, END=22; const span = END-START;
-  const today = sameDay(cursor, new Date());
-  const nowFrac = today ? (new Date().getHours() + new Date().getMinutes()/60 - START)/span : null;
-  const lanes = entities.map((e) => {
-    const segs = [];
-    for(let h=START; h<END; h++){
-      const probe = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate(), h);
-      const loc = ctx.placementAt(e.id, probe);
-      const last = segs[segs.length-1];
-      if(last && last.loc===loc) last.e = h+1;
-      else segs.push({ loc, s:h, e:h+1 });
-    }
-    return { entity:e, segs };
-  });
-  return (
-    <div className="wa-day">
-      <div className="wa-day__axis">
-        <div className="wa-day__axisPad" />
-        <div className="wa-day__hours">
-          {Array.from({ length:span+1 }).map((_, i) => (
-            <span key={i} className="wa-day__hour" style={{ left:`${(i/span)*100}%` }}>{((START+i+11)%12)+1}</span>
-          ))}
-        </div>
-      </div>
-      <div className="wa-day__grid">
-        {lanes.map(({ entity, segs }) => (
-          <div key={entity.id} className="wa-lane" onClick={()=>ctx.onPick(entity.id, cursor)} title={"Set where "+firstName(entity.name)+" is"}>
-            <div className="wa-lane__who"><Token entity={entity} size={28} /><span className="wa-lane__name">{firstName(entity.name)}</span></div>
-            <div className="wa-lane__track">
-              {nowFrac!=null && nowFrac>=0 && nowFrac<=1 && <div className="wa-nowline" style={{ left:`${nowFrac*100}%` }} />}
-              {segs.map((seg, i) => {
-                const isHome = seg.loc === ctx.homeOf[entity.id];
-                return (
-                  <div key={i} className={"wa-seg"+(isHome?" wa-seg--home":"")}
-                    style={{ left:`${((seg.s-START)/span)*100}%`, width:`${((seg.e-seg.s)/span)*100}%`,
-                      background:isHome?"transparent":rgba(entity.color,0.16),
-                      borderLeft:isHome?"none":`3px solid ${entity.color}`, color:isHome?"var(--muted)":"var(--ink)" }}>
-                    <span className="wa-seg__label">{ctx.placeOf(seg.loc).name}</span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-      <p className="wa-hint" style={{margin:"10px 4px 0"}}>Tap a person's row to set where they are on this day.</p>
-    </div>
-  );
-}
-
 /* ============================================================ WEEK VIEW ============================================================ */
 function WeekView({ entities, cursor, ctx, onPickDay }){
   const sow = startOfWeek(cursor);
@@ -1845,6 +1745,13 @@ function projectAlbers(lon, lat){
 
 // Coordinates for the places the app ships with. Any place can carry its own
 // lat/lon (editable in the place editor); this is only the seed.
+// How far from home a place is, in three coarse bands. Gives a Tideline exception
+// its height: nearby sits just above the line, overseas near the top. Anything
+// unlisted is treated as "a flight away", which is the safe middle assumption.
+const TIDE_RING = { sanantonio:1, dallas:1, austin:1, office:1,
+  boston:2, auburn:2, chicago:2, newyork:2, bethesda:2, miami:2,
+  sardinia:3, capri:3, santorini:3 };
+
 const PLACE_COORDS = {
   sanantonio:[-98.49,29.42], dallas:[-96.80,32.78], austin:[-97.74,30.27],
   boston:[-71.06,42.36], auburn:[-85.48,32.61], chicago:[-87.63,41.88],
@@ -2135,414 +2042,180 @@ function MapToday({ entities, cursor, ctx, onPick }){
 }
 
 /* ============================================================
-   STORYLINE VIEW - the signature visualization.
-   ------------------------------------------------------------
-   Each person is a LINE flowing left to right through time.
-   - y = PLACE (bands), first place in placeOrder at the BOTTOM, so altitude reads
-     as "further from home". Binding y to place is the key simplification: classic
-     storyline layout has to choose the vertical order of groups, which is NP-hard.
-     Ours is fixed, so lines cross exactly when people actually swap places.
-   - A day someone stays put is a FLAT run. A travel day is a DIAGONAL inside that
-     day's column - the Marey/Ibry graphical-timetable convention, where horizontal
-     means stopped and diagonal means moving.
-   - Color only appears when someone is AWAY from their own home base; at home the
-     line is quiet slate. So a calm week renders nearly monochrome, and the amount
-     of colored ink IS how scattered the family is.
-   - People in the same place occupy adjacent slots, so travelling together reads
-     as one thick band.
+   DAY BOARD - who is where, in words, no chart metaphor.
+   Places are ranked by how much they matter today (somewhere unusual first,
+   then away-as-usual, then home) rather than by a fixed order, so the thing
+   worth knowing is always at the top. Readable across a room with no legend.
    ============================================================ */
-// GUTTER is small because the place labels live in a separate sticky DOM column
-// beside the scrollable SVG, not inside it.
-const ST = { LANE:20, BAND_GAP:18, PAD_TOP:34, PAD_BOT:14, COL_W:78, GUTTER:10 };
+const STATE_RANK = { unusual:0, expected:1, home:2 };
 
-function storySegment(pts, xs, hold, k, a, b){
-  // One continuous path across days a..b: flat (or diagonal) inside each day
-  // column, eased S-curve between columns.
-  let d = `M ${xs[a]-hold} ${pts[a].y1} L ${xs[a]+hold} ${pts[a].y2}`;
-  for(let t=a; t<b; t++){
-    const x1 = xs[t]+hold, x2 = xs[t+1]-hold;
-    const yA = pts[t].y2, yB = pts[t+1].y1;
-    d += (yA === yB) ? ` L ${x2} ${yB}` : ` C ${x1+k} ${yA} ${x2-k} ${yB} ${x2} ${yB}`;
-    d += ` L ${xs[t+1]+hold} ${pts[t+1].y2}`;
-  }
-  return d;
-}
-
-function StoryView({ entities, days, ctx, onPickDay, onPick }){
-  const layout = useMemo(() => {
-    const today = new Date();
-    // --- resolve the window once ---
-    const grid = {}, jour = {};
-    entities.forEach(e => {
-      grid[e.id] = days.map(d => ctx.dayPlacement(e.id, d));
-      jour[e.id] = days.map(d => ctx.journeyOf(e.id, d));
-    });
-    // --- movers only: hide anyone who sat at home all window and never moved ---
-    const stateAtDay = (id, t) => jour[id][t] ? "unusual" : ctx.dayState(id, days[t]);
-    const isAwayAt = (id, t) => stateAtDay(id, t) !== "home";
-    const interesting = entities.filter(e => {
-      const moved = new Set(grid[e.id]).size > 1 || jour[e.id].some(Boolean);
-      const away  = days.some((_, t) => isAwayAt(e.id, t));
-      return moved || away;
-    });
-    const hidden = entities.length - interesting.length;
-    if(!interesting.length) return { empty:true, hidden, H:80 };
-
-    // --- which place bands are occupied ---
-    const occ = new Set();
-    interesting.forEach(e => days.forEach((_, t) => {
-      const j = jour[e.id][t];
-      if(j){ occ.add(j.from); occ.add(j.to); } else occ.add(grid[e.id][t]);
-    }));
-    let bands = ctx.placeOrder.filter(p => occ.has(p));
-    occ.forEach(p => { if(!bands.includes(p)) bands.push(p); });
-
-    // --- lane count per band = peak concurrent occupancy ---
-    const lanes = {};
-    bands.forEach(p => {
-      let mx = 1;
-      days.forEach((_, t) => {
-        let c = 0;
-        interesting.forEach(e => {
-          const j = jour[e.id][t];
-          if(j){ if(j.from === p || j.to === p) c++; }
-          else if(grid[e.id][t] === p) c++;
-        });
-        if(c > mx) mx = c;
-      });
-      lanes[p] = mx;
-    });
-
-    // --- band tops; render top-down but with placeOrder[0] at the BOTTOM ---
-    const topDown = bands.slice().reverse();
-    const bandTop = {};
-    let y = ST.PAD_TOP;
-    topDown.forEach(p => { bandTop[p] = y; y += lanes[p]*ST.LANE + ST.BAND_GAP; });
-    const H = y - ST.BAND_GAP + ST.PAD_BOT;
-
-    // --- slot assignment: one forward barycenter sweep ---
-    // Sorting each band's members by where they were the previous day keeps lines
-    // from needlessly crossing: someone arriving from a band above enters at the
-    // top slot, someone from below enters at the bottom.
-    const rosterIdx = {}; entities.forEach((e,i) => { rosterIdx[e.id] = i; });
-    const pos = {}; interesting.forEach(e => { pos[e.id] = []; });
-    let prev = null;
-    days.forEach((_, t) => {
-      const cur = {};
-      bands.forEach(p => {
-        const members = interesting.filter(e => {
-          const j = jour[e.id][t];
-          if(j) return j.from === p || j.to === p;
-          return grid[e.id][t] === p;
-        });
-        members.sort((a,b) => {
-          if(!prev) return rosterIdx[a.id] - rosterIdx[b.id];
-          const pa = prev[a.id] !== undefined ? prev[a.id] : bandTop[p];
-          const pb = prev[b.id] !== undefined ? prev[b.id] : bandTop[p];
-          return pa - pb || rosterIdx[a.id] - rosterIdx[b.id];
-        });
-        members.forEach((e, k) => {
-          const yy = bandTop[p] + k*ST.LANE + ST.LANE/2;
-          const j = jour[e.id][t];
-          if(!pos[e.id][t]) pos[e.id][t] = {};
-          if(j){
-            if(j.from === p) pos[e.id][t].y1 = yy;
-            if(j.to === p)   pos[e.id][t].y2 = yy;
-          } else { pos[e.id][t].y1 = yy; pos[e.id][t].y2 = yy; }
-          cur[e.id] = yy;
-        });
-      });
-      prev = cur;
-    });
-    // Safety: fill any gap so a path never hits undefined.
-    interesting.forEach(e => days.forEach((_, t) => {
-      const p = pos[e.id][t] || (pos[e.id][t] = {});
-      if(p.y1 === undefined) p.y1 = p.y2 !== undefined ? p.y2 : ST.PAD_TOP;
-      if(p.y2 === undefined) p.y2 = p.y1;
-    }));
-
-    // --- runs of contiguous SAME-STATE away days, so each can be drawn at its
-    //     own strength (expected = muted, unusual = full color) ---
-    const runs = {};
-    interesting.forEach(e => {
-      const r = []; let start = null, kind = null;
-      days.forEach((_, t) => {
-        const st = stateAtDay(e.id, t);
-        const away = st !== "home";
-        if(away && start === null){ start = t; kind = st; }
-        else if(away && st !== kind){ r.push([start, t-1, kind]); start = t; kind = st; }
-        if(!away && start !== null){ r.push([start, t-1, kind]); start = null; kind = null; }
-        if(away && t === days.length-1){ r.push([start, t, kind]); start = null; kind = null; }
-      });
-      runs[e.id] = r;
-    });
-
-    const xs = days.map((_, t) => ST.GUTTER + t*ST.COL_W + ST.COL_W/2);
-    const W = ST.GUTTER + days.length*ST.COL_W + 16;
-    const todayIdx = days.findIndex(d => sameDay(d, today));
-    return { empty:false, hidden, interesting, grid, jour, bands, topDown, lanes,
-             bandTop, pos, runs, xs, W, H, todayIdx, isAwayAt };
-  }, [entities, days, ctx]);
-
-  if(layout.empty){
-    return (
-      <div className="wa-card">
-        <p className="wa-hint" style={{textAlign:"center",padding:"28px 0"}}>
-          Everyone was in their home base all week - nothing moved.
-        </p>
-      </div>
-    );
-  }
-
-  const { interesting, bands, topDown, lanes, bandTop, pos, runs, xs, W, H, todayIdx, jour, grid } = layout;
-  const hold = ST.COL_W*0.34, k = ST.COL_W*0.22;
-
-  return (
-    <div className="wa-story">
-      <div className="wa-story__labels" style={{height:H}}>
-        {topDown.map(p => (
-          <span key={p} className="wa-story__lbl"
-            style={{ top: bandTop[p] + (lanes[p]*ST.LANE)/2 - 8 }}>
-            {ctx.placeOf(p).name}
-          </span>
-        ))}
-      </div>
-      <div className="wa-story__scroll">
-        <svg width={W} height={H} role="img"
-             aria-label={"Where each person is across " + days.length + " days"}>
-          {/* day columns + headers */}
-          {days.map((d, t) => (
-            <g key={t} onClick={()=>onPickDay && onPickDay(d)} style={{cursor:"pointer"}}>
-              <rect x={xs[t]-ST.COL_W/2} y={0} width={ST.COL_W} height={H}
-                    fill={t===todayIdx ? "rgba(25,33,43,.045)" : "transparent"} />
-              <text x={xs[t]} y={15} textAnchor="middle" className="wa-story__dn">{DAY_NAMES[d.getDay()]}</text>
-              <text x={xs[t]} y={28} textAnchor="middle"
-                    className={"wa-story__dd" + (t===todayIdx ? " is-today" : "")}>{d.getDate()}</text>
-            </g>
-          ))}
-          {/* band baselines */}
-          {topDown.map(p => (
-            <line key={p} x1={ST.GUTTER-8} x2={W-8}
-                  y1={bandTop[p] + lanes[p]*ST.LANE + ST.BAND_GAP/2 - 2}
-                  y2={bandTop[p] + lanes[p]*ST.LANE + ST.BAND_GAP/2 - 2}
-                  className="wa-story__rule" />
-          ))}
-          {/* the lines: a quiet base for the whole week, colored only where away */}
-          {interesting.map(e => {
-            const pts = pos[e.id];
-            const full = storySegment(pts, xs, hold, k, 0, days.length-1);
-            return (
-              <g key={e.id}>
-                <path d={full} className="wa-story__halo" />
-                <path d={full} className="wa-story__base" />
-                {runs[e.id].map(([a,b,kind], i) => (
-                  <path key={i} d={storySegment(pts, xs, hold, k, a, b)}
-                        fill="none" stroke={kind==="unusual" ? e.color : rgba(e.color, 0.42)}
-                        strokeWidth={kind==="unusual" ? 3 : 2.5}
-                        strokeLinecap="round" strokeLinejoin="round" />
-                ))}
-                {/* identity marker at the start of each away stretch */}
-                {runs[e.id].map(([a,,kind], i) => {
-                  const cy = pts[a].y1, cx = xs[a]-hold;
-                  const isPet = e.kind === "pet";
-                  const fill = kind==="unusual" ? e.color : rgba(e.color, 0.42);
-                  const txt = kind==="unusual" ? readableText(e.color) : "#19212B";
-                  const ring = (e.color||"").toUpperCase()==="#FFFFFF" ? "#C7CDD6"
-                             : (kind==="unusual" ? "none" : rgba(e.color, 0.8));
-                  return (
-                    <g key={"m"+i} onClick={()=>onPick && onPick(e.id, days[a])} style={{cursor:"pointer"}}>
-                      {isPet
-                        ? <rect x={cx-8} y={cy-8} width="16" height="16" rx="5" fill={fill} stroke={ring} />
-                        : <circle cx={cx} cy={cy} r="8" fill={fill} stroke={ring} />}
-                      <text x={cx} y={cy} dy="0.32em" textAnchor="middle"
-                            className="wa-story__mono" fill={txt}>{e.short}</text>
-                    </g>
-                  );
-                })}
-                {/* fat invisible hit target - a 3px line is untappable */}
-                <path d={full} fill="none" stroke="transparent" strokeWidth="22"
-                      pointerEvents="stroke" style={{cursor:"pointer"}}
-                      onClick={()=>onPick && onPick(e.id, days[0])}>
-                  <title>{e.name}</title>
-                </path>
-              </g>
-            );
-          })}
-        </svg>
-      </div>
-      {layout.hidden > 0 && (
-        <p className="wa-story__more">{layout.hidden} {layout.hidden===1?"other was":"others were"} in their home base all week.</p>
-      )}
-    </div>
-  );
-}
-
-/* ============================================================
-   MONTH STRIPS - one ribbon per person, a month across.
-   Ink ONLY on away days (the leave-wallchart discipline), so a calm month is
-   mostly empty and a busy one is mostly full. Rows are ordered by TRAJECTORY
-   SIMILARITY rather than alphabetically, so people who travel together end up
-   adjacent and a shared trip reads as one solid block instead of two unrelated
-   stripes in a plaid grid.
-   ============================================================ */
-function MonthStrips({ entities, cursor, ctx, onPickDay }){
+function DayBoard({ entities, cursor, setCursor, isLive, ctx, onPick }){
   const L = useMemo(() => {
-    const y = cursor.getFullYear(), m = cursor.getMonth();
-    const nDays = new Date(y, m+1, 0).getDate();
-    const days = Array.from({length:nDays}, (_,i) => new Date(y, m, i+1));
-    const grid = {}, jour = {};
+    const groups = new Map();
     entities.forEach(e => {
-      grid[e.id] = days.map(d => ctx.dayPlacement(e.id, d));
-      jour[e.id] = days.map(d => ctx.journeyOf(e.id, d));
+      const jr = ctx.journeyOf(e.id, cursor);
+      const pid = jr ? (cursor.getHours() < 14 ? jr.from : jr.to) : ctx.placementAt(e.id, cursor);
+      if(!groups.has(pid)) groups.set(pid, []);
+      groups.get(pid).push({ e, state: ctx.stateAt(e.id, cursor), journey: jr });
     });
-    const stateAtDay = (id, t) => jour[id][t] ? "unusual" : ctx.dayState(id, days[t]);
-    const awayAt = (id, t) => stateAtDay(id, t) !== "home";
-    const movers = entities.filter(e =>
-      days.some((_, t) => awayAt(e.id, t)) || new Set(grid[e.id]).size > 1);
-    const hidden = entities.length - movers.length;
-
-    // Greedy nearest-neighbour chain on Hamming distance between day-vectors.
-    // Seeded with whoever was away most, so the busiest row is on top.
-    const dist = (a,b) => { let d=0; for(let t=0;t<nDays;t++) if(grid[a][t]!==grid[b][t]) d++; return d; };
-    const awayDays = (id) => days.reduce((n,_,t) => n + (awayAt(id,t)?1:0), 0);
-    const pool = movers.slice().sort((a,b) => awayDays(b.id) - awayDays(a.id));
-    const ordered = [];
-    if(pool.length){
-      ordered.push(pool.shift());
-      while(pool.length){
-        const last = ordered[ordered.length-1].id;
-        let bi = 0, bd = Infinity;
-        pool.forEach((e,i) => { const d = dist(last, e.id); if(d < bd){ bd = d; bi = i; } });
-        ordered.push(pool.splice(bi,1)[0]);
-      }
-    }
-    return { days, nDays, grid, jour, ordered, hidden, awayAt, stateAtDay };
+    const rows = [...groups.entries()].map(([pid, members]) => ({
+      pid, place: ctx.placeOf(pid), members,
+      rank: Math.min(...members.map(m => STATE_RANK[m.state])),
+    }));
+    rows.sort((a,b) => a.rank - b.rank || b.members.length - a.members.length);
+    const unusual = entities.filter(e => ctx.stateAt(e.id, cursor) === "unusual").length;
+    return { rows, unusual };
   }, [entities, cursor, ctx]);
 
-  const { days, nDays, grid, jour, ordered, hidden, awayAt, stateAtDay } = L;
-  const cols = { gridTemplateColumns:`repeat(${nDays},1fr)` };
+  const hour = cursor.getHours();
+  const setHour = (h) => { const x = new Date(cursor); x.setHours(h,0,0,0); setCursor && setCursor(x); };
+  const ampm = (h) => `${((h+11)%12)+1} ${h<12?"AM":"PM"}`;
 
-  if(!ordered.length){
-    return <div className="wa-card"><p className="wa-hint" style={{textAlign:"center",padding:"28px 0"}}>
-      Everyone was in their home base all month.</p></div>;
-  }
   return (
-    <div className="wa-strips">
-      <div className="wa-strip wa-strip--head">
-        <div className="wa-strip__who" />
-        <div className="wa-strip__cells" style={cols}>
-          {days.map((d,t) => (
-            <span key={t} className={"wa-strip__num"+(d.getDay()===0?" is-wk":"")}>
-              {(d.getDate()===1 || d.getDate()%7===0) ? d.getDate() : ""}
-            </span>
-          ))}
-        </div>
-      </div>
-      {ordered.map(e => (
-        <div className="wa-strip" key={e.id}>
-          <div className="wa-strip__who"><Token entity={e} size={20} /><span>{firstName(e.name)}</span></div>
-          <div className="wa-strip__cells" style={cols}>
-            {days.map((d,t) => {
-              const st = stateAtDay(e.id, t);
-              const j = jour[e.id][t];
-              const place = ctx.placeOf(grid[e.id][t]).name;
-              const ink = st==="unusual" ? e.color : rgba(e.color, 0.34);
-              const bg = st==="home" ? undefined
-                : j ? { background:`linear-gradient(135deg, ${ink} 50%, ${rgba(e.color,.20)} 50%)` }
-                    : { background: ink };
-              return (
-                <button key={t} style={bg}
-                  className={"wa-strip__c"+(st!=="home"?" is-away":"")+(d.getDay()===0?" is-wk":"")}
-                  title={firstName(e.name)+" - "+place+(st==="expected"?" (as usual)":"")+" - "+MONTH_ABBR[d.getMonth()]+" "+d.getDate()}
-                  onClick={()=>onPickDay && onPickDay(d)} />
-              );
-            })}
+    <div>
+      {setCursor && (
+        <div className="wa-scrub">
+          <div className="wa-scrub__label">
+            <span className="wa-mono">{ampm(hour)}</span>
+            {isLive ? <span className="wa-livedot">live</span> : <span className="wa-scrub__hint">scrubbing</span>}
           </div>
+          <input className="wa-range" type="range" min="0" max="23" value={hour}
+                 onChange={(e)=>setHour(Number(e.target.value))} aria-label="Time of day" />
+          <div className="wa-scrub__ticks"><span>6 AM</span><span>Noon</span><span>6 PM</span><span>Midnight</span></div>
         </div>
-      ))}
-      {hidden > 0 && <p className="wa-story__more">{hidden} {hidden===1?"other was":"others were"} in their home base all month.</p>}
-      <p className="wa-hint" style={{margin:"8px 4px 0"}}>Solid days are somewhere unusual; faded days are away as usual (school, the office). Split cells are travel days.</p>
-    </div>
-  );
-}
-
-/* ============================================================
-   YEAR - the family's year as texture, plus its recurring STATES.
-   Each day is a thin stack of stripes, one per person who is away, in fixed
-   roster order - so identity survives as stripe POSITION even at a few pixels,
-   where hue alone would fail. Days when everyone is in their home base draw
-   almost nothing, so a calm stretch is visibly quiet.
-   Underneath, the year's most common configurations are named in plain words.
-   ============================================================ */
-function YearStates({ entities, cursor, ctx, onPickMonth }){
-  const L = useMemo(() => {
-    const y = cursor.getFullYear();
-    const dayInfo = new Map();          // ymd -> away entity list (roster order)
-    const sig = new Map();              // signature -> { ids, count }
-    for(let m=0; m<12; m++){
-      const n = new Date(y, m+1, 0).getDate();
-      for(let d=1; d<=n; d++){
-        const date = new Date(y, m, d);
-        // Only UNUSUAL days paint. Someone at school or at the office on an
-        // ordinary day is not an event, so a routine stretch reads as calm.
-        const away = entities.filter(e => ctx.dayState(e.id, date) === "unusual");
-        dayInfo.set(m*100+d, away);
-        const key = away.map(e => e.id).join("|");
-        const s = sig.get(key) || { ids: away.map(e => e.id), count: 0 };
-        s.count++; sig.set(key, s);
-      }
-    }
-    const states = [...sig.values()].sort((a,b) => b.count - a.count).slice(0, 6);
-    return { dayInfo, states };
-  }, [entities, cursor, ctx]);
-
-  const nameOf = (id) => { const e = entities.find(x => x.id === id); return e ? firstName(e.name) : id; };
-  // Name the state by WHO, not just how many - two different groups of five are
-  // different facts, and "5 away" twice in a list tells you nothing.
-  const label = (ids) => {
-    if(!ids.length) return "Everyone where they should be";
-    if(ids.length <= 3) return ids.map(nameOf).join(" + ") + " away";
-    return ids.slice(0,2).map(nameOf).join(" + ") + " +" + (ids.length-2) + " more away";
-  };
-  const stripes = (away) => {
-    if(!away.length) return undefined;
-    const show = away.slice(0, 4);
-    const step = 100/show.length;
-    const stops = show.map((e,i) => `${e.color} ${i*step}% ${(i+1)*step}%`).join(", ");
-    return { background:`linear-gradient(90deg, ${stops})` };
-  };
-  const y = cursor.getFullYear();
-
-  return (
-    <div className="wa-year">
-      {Array.from({length:12}).map((_, m) => {
-        const gridStart = startOfWeek(new Date(y, m, 1));
-        const cells = Array.from({length:42}).map((_, i) => addDays(gridStart, i));
-        return (
-          <div key={m} className="wa-ymonth">
-            <button className="wa-ymonth__label" onClick={()=>onPickMonth(m)}>{MONTH_ABBR[m]}</button>
-            <div className="wa-ymonth__grid">
-              {cells.map((d, i) => {
-                const inMonth = d.getMonth() === m;
-                const away = inMonth ? (L.dayInfo.get(m*100 + d.getDate()) || []) : [];
-                return <span key={i} className={"wa-ycell"+(inMonth?"":" is-out")+(inMonth&&!away.length?" is-calm":"")}
-                  style={inMonth ? stripes(away) : undefined}
-                  title={inMonth ? `${MONTH_ABBR[m]} ${d.getDate()} - ${away.length ? away.map(e=>firstName(e.name)).join(", ")+" somewhere unusual" : "everyone where they should be"}` : ""} />;
-              })}
+      )}
+      <div className="wa-board2">
+        {L.rows.map(r => (
+          <div key={r.pid} className={"wa-brow wa-brow--r"+r.rank}>
+            <span className="wa-brow__rail" />
+            <div className="wa-brow__place">
+              <b>{r.place.name}</b>
+              {r.rank === 0 && <span className="wa-brow__tag">unusual</span>}
+              {r.rank === 1 && <span className="wa-brow__tag wa-brow__tag--soft">away as usual</span>}
+            </div>
+            <div className="wa-brow__who">
+              {r.members.map(m => (
+                <button key={m.e.id} className="wa-brow__p" onClick={()=>onPick && onPick(m.e.id, cursor)}>
+                  <Token entity={m.e} size={34} state={m.state} />
+                  <span>{firstName(m.e.name)}</span>
+                  {m.journey && <em>{ctx.placeOf(m.journey.from).name} &rarr; {ctx.placeOf(m.journey.to).name}</em>}
+                </button>
+              ))}
             </div>
           </div>
-        );
-      })}
-      <div className="wa-ystates">
-        <p className="wa-ystates__h">This year, most often</p>
-        {L.states.map((s,i) => (
-          <div key={i} className="wa-ystate">
-            <span className="wa-ystate__sw" style={s.ids.length ? stripes(s.ids.map(id=>entities.find(e=>e.id===id)).filter(Boolean)) : undefined} />
-            <span className="wa-ystate__n">{label(s.ids)}</span>
-            <span className="wa-ystate__d">{s.count} {s.count===1?"day":"days"}</span>
-          </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   TIDELINE - one grammar for week, month and year.
+   The water level is "everyone where they SHOULD be" - at home, or at school /
+   the office as usual - so an ordinary stretch is a full, flat basin and only
+   genuine exceptions break the surface. Without folding "away as usual" into the
+   basin, the two kids at school sit above the line all year and drown the signal.
+   Level of detail is driven by column width: wide enough and each exception is a
+   labelled token; too narrow (a year) and it degrades to coloured ticks.
+   ============================================================ */
+const TIDE = { H:300, BASE:190, UNIT:9, LVL:{1:44, 2:88, 3:132}, PAD:8 };
+
+function Tideline({ entities, days, ctx, onPickDay, label }){
+  const wrapRef = useRef(null);
+  const [w,setW] = useState(900);
+  useEffect(() => {
+    const el = wrapRef.current; if(!el) return;
+    // clientWidth includes this box's own horizontal padding, and on the very
+    // first pass it can be padding-only (the element has not been laid out yet).
+    // Ignoring implausibly small values stops the chart collapsing to a sliver;
+    // one extra measure on the next frame catches the real width.
+    const PADX = 20;
+    const measure = () => {
+      const cw = el.clientWidth - PADX;
+      if(cw > 80) setW(cw);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    measure();
+    const raf = requestAnimationFrame(measure);
+    return () => { ro.disconnect(); cancelAnimationFrame(raf); };
+  }, []);
+
+  const L = useMemo(() => {
+    return days.map(d => {
+      const settled = [], out = [];
+      entities.forEach(e => {
+        const st = ctx.dayState(e.id, d);
+        if(st === "unusual") out.push({ e, place: ctx.dayPlacement(e.id, d) });
+        else settled.push(e);
+      });
+      return { d, settled: settled.length, out };
+    });
+  }, [entities, days, ctx]);
+
+  const n = days.length;
+  const colw = Math.max(2, (w - TIDE.PAD*2) / n);
+  const detail = colw >= 15;                     // room for real tokens?
+  const x = (i) => TIDE.PAD + colw*(i+0.5);
+  const H = TIDE.H;
+
+  const basin = [[TIDE.PAD, TIDE.BASE]];
+  L.forEach((row,i) => {
+    const y = TIDE.BASE + row.settled*TIDE.UNIT;
+    basin.push([x(i)-colw/2, y], [x(i)+colw/2, y]);
+  });
+  basin.push([w - TIDE.PAD, TIDE.BASE]);
+  const basinD = "M" + basin.map(p => p[0].toFixed(1)+","+p[1].toFixed(1)).join("L") + "Z";
+
+  const maxOut = Math.max(1, ...L.map(r => r.out.length));
+
+  return (
+    <div className="wa-tide" ref={wrapRef}>
+      <svg width="100%" height={H} viewBox={`0 0 ${w} ${H}`} preserveAspectRatio="none"
+           role="img" aria-label={"Who is away across "+(label||"this period")}>
+        <path d={basinD} className="wa-tide__basin" />
+        <line x1={TIDE.PAD} y1={TIDE.BASE} x2={w-TIDE.PAD} y2={TIDE.BASE} className="wa-tide__line" />
+        {L.map((row,i) => {
+          if(!row.out.length) return null;
+          const byRing = {};
+          row.out.forEach(o => {
+            const r = TIDE_RING[o.place] || 2;
+            (byRing[r] = byRing[r] || []).push(o);
+          });
+          return (
+            <g key={i} onClick={()=>onPickDay && onPickDay(row.d)} style={{cursor:"pointer"}}>
+              {Object.entries(byRing).map(([ring, list]) => list.map((o,k) => {
+                const cy = TIDE.BASE - TIDE.LVL[ring] - k*(detail?19:5);
+                return detail
+                  ? <g key={ring+"-"+k}>
+                      <circle cx={x(i)} cy={cy} r="8.5" fill={o.e.color}
+                              stroke={(o.e.color||"").toUpperCase()==="#FFFFFF"?"#C7CDD6":"none"} strokeWidth="1.4" />
+                      <text x={x(i)} y={cy} dy="0.34em" textAnchor="middle" className="wa-tide__mono"
+                            fill={readableText(o.e.color)}>{o.e.short}</text>
+                    </g>
+                  : <rect key={ring+"-"+k} x={x(i)-Math.min(3,colw/2)} y={cy-2}
+                          width={Math.min(6,colw)} height="4" rx="1.5" fill={o.e.color} />;
+              }))}
+            </g>
+          );
+        })}
+        {/* day ticks: only where they fit */}
+        {L.map((row,i) => {
+          const dd = row.d.getDate();
+          // Label density follows column width. At year scale ONLY the 1st is
+          // labelled, with the month name - anything else double-labels months.
+          const show = colw >= 26 ? true
+                     : colw >= 9  ? (dd === 1 || dd % 5 === 0)
+                     : dd === 1;
+          if(!show) return null;
+          return <text key={"t"+i} x={x(i)} y={TIDE.BASE+13} textAnchor="middle"
+                       className="wa-tide__tick">{colw >= 9 ? dd : MONTH_ABBR[row.d.getMonth()]}</text>;
+        })}
+      </svg>
+      <p className="wa-hint" style={{margin:"6px 4px 0"}}>
+        The level is everyone where they should be. Only what&rsquo;s unusual rises above it
+        {maxOut>0 ? "" : ""}.
+      </p>
     </div>
   );
 }
@@ -2629,9 +2302,9 @@ function App(){
   const [cursor,setCursor]=useState(new Date());
   const [tick,setTick]=useState(0);
   const [settingsOpen,setSettingsOpen]=useState(false);
-  const [weekMode,setWeekMode]=useState(()=>lsGet("weekMode","story"));
+  const [weekMode,setWeekMode]=useState(()=>lsGet("weekMode","tide"));
   useEffect(()=>{ lsSet("weekMode", weekMode); },[weekMode]);
-  const [monthMode,setMonthMode]=useState(()=>lsGet("monthMode","strips"));
+  const [monthMode,setMonthMode]=useState(()=>lsGet("monthMode","tide"));
   useEffect(()=>{ lsSet("monthMode", monthMode); },[monthMode]);
   const [nowMode,setNowMode]=useState(()=>lsGet("nowMode","board"));
   useEffect(()=>{ lsSet("nowMode", nowMode); },[nowMode]);
@@ -2826,35 +2499,40 @@ function App(){
             </div>
             {nowMode==="map"
               ? <MapToday entities={entities} cursor={cursor} ctx={ctx} onPick={ctx.onPick} />
-              : <NowBoard entities={entities} cursor={cursor} setCursor={setCursor} isLive={isLive} ctx={ctx} />}
+              : <DayBoard entities={entities} cursor={cursor} setCursor={setCursor} isLive={isLive}
+                          ctx={ctx} onPick={ctx.onPick} />}
           </div>
         )}
-        {view==="Day" && <DayView entities={entities} cursor={cursor} ctx={ctx} />}
+        {view==="Day" && <DayBoard entities={entities} cursor={cursor} setCursor={setCursor}
+                                   isLive={isLive} ctx={ctx} onPick={ctx.onPick} />}
         {view==="Week" && (
           <div className="wa-storywrap">
             <div className="wa-storytoggle">
-              <button className={weekMode==="story"?"is-on":""} onClick={()=>setWeekMode("story")}>Threads</button>
+              <button className={weekMode==="tide"?"is-on":""} onClick={()=>setWeekMode("tide")}>Tideline</button>
               <button className={weekMode==="table"?"is-on":""} onClick={()=>setWeekMode("table")}>Table</button>
             </div>
-            {weekMode==="story"
-              ? <StoryView entities={entities}
+            {weekMode==="table"
+              ? <WeekView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />
+              : <Tideline entities={entities} label="this week"
                   days={Array.from({length:7}).map((_,i)=>addDays(startOfWeek(cursor), i))}
-                  ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} onPick={ctx.onPick} />
-              : <WeekView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
+                  ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
           </div>
         )}
         {view==="Month" && (
           <div className="wa-storywrap">
             <div className="wa-storytoggle">
-              <button className={monthMode==="strips"?"is-on":""} onClick={()=>setMonthMode("strips")}>Strips</button>
+              <button className={monthMode==="tide"?"is-on":""} onClick={()=>setMonthMode("tide")}>Tideline</button>
               <button className={monthMode==="calendar"?"is-on":""} onClick={()=>setMonthMode("calendar")}>Calendar</button>
             </div>
-            {monthMode==="strips"
-              ? <MonthStrips entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />
-              : <MonthView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
+            {monthMode==="calendar"
+              ? <MonthView entities={entities} cursor={cursor} ctx={ctx} onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />
+              : <Tideline entities={entities} label="this month"
+                  days={monthDays(cursor)} ctx={ctx}
+                  onPickDay={(d)=>{ setCursor(d); setView("Day"); }} />}
           </div>
         )}
-        {view==="Year" && <YearStates entities={entities} cursor={cursor} ctx={ctx} onPickMonth={(m)=>{ setCursor(new Date(cursor.getFullYear(), m, 1)); setView("Month"); }} />}
+        {view==="Year" && <Tideline entities={entities} label="this year" days={yearDays(cursor)} ctx={ctx}
+                                    onPickDay={(d)=>{ setCursor(d); setView("Month"); }} />}
       </main>
 
       <footer className="wa-legend">
