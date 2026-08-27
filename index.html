@@ -440,12 +440,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.13.0";
+const APP_VERSION = "0.13.1";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-26.1";
+const BUILD = "2026-08-27.1";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -512,20 +512,20 @@ const HOME_OF = {
   gus:"sanantonio", graham:"sanantonio", lola:"sanantonio",
 };
 const SEED_ROSTER = [
-  { id:"chris",     name:"Pops",      short:"Po", kind:"person", color:"#1E40AF" },
-  { id:"kristin",   name:"Kristin",   short:"Kr", kind:"person", color:"#DB2777" },
-  { id:"jenna",     name:"Jenna",     short:"Je", kind:"person", color:"#0D9488" },
-  { id:"cjr",       name:"Chris Jr.", short:"CJ", kind:"person", color:"#EA580C" },
-  { id:"samuel",    name:"Samuel",    short:"Sa", kind:"person", color:"#6D28D9" },
-  { id:"hank",      name:"Hank",      short:"Ha", kind:"person", color:"#DC2626" },
+  { id:"chris",     name:"Pops",      short:"Pops", kind:"person", color:"#1E40AF" },
+  { id:"kristin",   name:"Kristin",   short:"KG", kind:"person", color:"#DB2777" },
+  { id:"jenna",     name:"Jenna",     short:"JG", kind:"person", color:"#0D9488" },
+  { id:"cjr",       name:"Chris Jr.", short:"JR", kind:"person", color:"#EA580C" },
+  { id:"samuel",    name:"Samuel",    short:"SG", kind:"person", color:"#6D28D9" },
+  { id:"hank",      name:"Hank",      short:"HG", kind:"person", color:"#DC2626" },
   // Olive, not amber: amber collided with Hank's red + CJR's orange, a warm triple
   // that is indistinguishable at token size and collapses entirely under protanopia.
-  { id:"molly",     name:"Molly",     short:"Mo", kind:"person", color:"#A16207" },
+  { id:"molly",     name:"Molly",     short:"MG", kind:"person", color:"#A16207" },
   // Magenta, not rose: rose differed from Kristin's pink only in LIGHTNESS, so the
   // two merged at a glance. Separating by hue survives small sizes and distance.
-  { id:"bellarose", name:"Bellarose", short:"Br", kind:"person", color:"#C026D3" },
-  { id:"gracieann", name:"Gracieann", short:"Gr", kind:"person", color:"#0EA5E9" },
-  { id:"sophia",    name:"Sophia",    short:"So", kind:"person", color:"#16A34A" },
+  { id:"bellarose", name:"Bellarose", short:"BM", kind:"person", color:"#C026D3" },
+  { id:"gracieann", name:"Gracieann", short:"GM", kind:"person", color:"#0EA5E9" },
+  { id:"sophia",    name:"Sophia",    short:"SS", kind:"person", color:"#16A34A" },
   { id:"gus",       name:"Gus",       short:"Gu", kind:"pet",    color:"#18181B" },
   { id:"graham",    name:"Graham",    short:"Gh", kind:"pet",    color:"#7C4A2D" },
   { id:"lola",      name:"Lola",      short:"Lo", kind:"pet",    color:"#FFFFFF" },
@@ -1109,6 +1109,30 @@ function useStore(){
 //   expected -> half-strength (at school / at the office, as always)
 //   unusual  -> full color
 // `calm` is kept as a shorthand for state="home".
+// The family's real initials, applied once to existing records by the migration
+// in the seed effect (`shortsV`). Pets are omitted - they show a paw, not text.
+const SEED_SHORTS = { chris:"Pops", kristin:"KG", jenna:"JG", cjr:"JR", samuel:"SG",
+  hank:"HG", molly:"MG", bellarose:"BM", gracieann:"GM", sophia:"SS" };
+
+// A paw glyph for use inside SVG views, sized and centred on a point. Pets show
+// this instead of initials; their colour is what identifies them.
+function SvgPaw({ cx, cy, size, fill }){
+  const s = size / 24;
+  return (
+    <g transform={`translate(${cx - size/2} ${cy - size/2}) scale(${s})`} fill={fill} aria-hidden="true">
+      <circle cx="6" cy="9" r="2.1" /><circle cx="12" cy="6.5" r="2.1" /><circle cx="18" cy="9" r="2.1" />
+      <path d="M12 11c-3 0-5 2.2-5 4.6C7 17.5 9 18.5 12 18.5s5-1 5-2.9C17 13.2 15 11 12 11z" />
+    </g>
+  );
+}
+
+// Initials are usually two characters, but not always ("Pops"). Scale the text
+// down as they get longer instead of truncating someone's name.
+function shortScale(s){
+  const n = (s || "").length;
+  return n >= 4 ? 0.23 : n === 3 ? 0.28 : 0.34;
+}
+
 function Token({ entity, size=34, title, onClick, calm, state }){
   const st = state || (calm ? "home" : "unusual");
   const isPet = entity.kind === "pet";
@@ -1123,15 +1147,18 @@ function Token({ entity, size=34, title, onClick, calm, state }){
   return (
     <div className={"wa-token"+(isPet?" wa-token--pet":"")+(st!=="unusual"?" wa-token--calm":"")} title={title||entity.name} onClick={onClick}
       style={{ width:size, height:size, background:bg, color:txt,
-        borderRadius:isPet?size*0.32:"50%", border, fontSize:size*0.34,
+        borderRadius:isPet?size*0.32:"50%", border, fontSize:size*shortScale(entity.short),
         cursor:onClick?"pointer":"default" }}>
-      {entity.short}
-      {isPet && (
-        <svg className="wa-paw" viewBox="0 0 24 24" width={size*0.36} height={size*0.36} style={{ fill:txt }} aria-hidden="true">
-          <circle cx="6" cy="9" r="2.1" /><circle cx="12" cy="6.5" r="2.1" /><circle cx="18" cy="9" r="2.1" />
-          <path d="M12 11c-3 0-5 2.2-5 4.6C7 17.5 9 18.5 12 18.5s5-1 5-2.9C17 13.2 15 11 12 11z" />
-        </svg>
-      )}
+      {/* Pets carry a paw INSTEAD of initials - their colour already says which dog
+          it is. The paw takes the contrasting ink rather than always black, or Gus
+          (#18181B) would be a black paw on a black token. */}
+      {isPet
+        ? <svg className="wa-paw--big" viewBox="0 0 24 24" width={size*0.62} height={size*0.62}
+               style={{ fill:txt }} aria-hidden="true">
+            <circle cx="6" cy="9" r="2.1" /><circle cx="12" cy="6.5" r="2.1" /><circle cx="18" cy="9" r="2.1" />
+            <path d="M12 11c-3 0-5 2.2-5 4.6C7 17.5 9 18.5 12 18.5s5-1 5-2.9C17 13.2 15 11 12 11z" />
+          </svg>
+        : entity.short}
     </div>
   );
 }
@@ -1366,7 +1393,8 @@ function PersonEditor({ entity, places, store, onClose, toast }){
 
   function save(){
     if(!name.trim()){ toast("Name it first"); return; }
-    const s = ((short||name.slice(0,2)).trim()||name.slice(0,2)).slice(0,2);
+    // Up to FOUR characters: most are two ("KG"), but not all ("Pops").
+    const s = ((short||name.slice(0,2)).trim()||name.slice(0,2)).slice(0,4);
     const days = {};
     dayOv.forEach(o => { if(o.place) days[String(o.d)] = {
       place:o.place, from:Number(o.from), to:Number(o.to), outside:o.outside||undefined }; });
@@ -1390,7 +1418,7 @@ function PersonEditor({ entity, places, store, onClose, toast }){
         <div className="wa-sheet__head"><h2>{t.id?"Edit":"Add person or pet"}</h2><button className="wa-x" onClick={onClose}>{"×"}</button></div>
         <div className="wa-field"><span className="wa-label">Name</span><input className="wa-input" value={name} onChange={e=>setName(e.target.value)} placeholder="Name" autoFocus /></div>
         <div className="wa-row2">
-          <div className="wa-field"><span className="wa-label">Initials</span><input className="wa-input" value={short} maxLength={2} onChange={e=>setShort(e.target.value)} placeholder="2 letters" /></div>
+          <div className="wa-field"><span className="wa-label">Initials</span><input className="wa-input" value={short} maxLength={4} onChange={e=>setShort(e.target.value)} placeholder="e.g. KG" /></div>
           <div className="wa-field"><span className="wa-label">Kind</span>
             <select className="wa-select" value={kind} onChange={e=>setKind(e.target.value)}><option value="person">Person</option><option value="pet">Pet</option></select></div>
         </div>
@@ -1945,7 +1973,10 @@ function MapToday({ entities, cursor, ctx, onPick }){
         {isPet
           ? <rect x={x-10} y={y-10} width="20" height="20" rx="6" fill={fill} stroke={ring} strokeWidth="1.5" />
           : <circle cx={x} cy={y} r="10" fill={fill} stroke={ring} strokeWidth="1.5" />}
-        <text x={x} y={y} dy="0.34em" textAnchor="middle" className="wa-map__mono" fill={txt}>{e.short}</text>
+        {isPet
+          ? <SvgPaw cx={x} cy={y} size={13} fill={txt} />
+          : <text x={x} y={y} dy="0.34em" textAnchor="middle" className="wa-map__mono"
+                  fill={txt} style={{fontSize: 9 * (shortScale(e.short)/0.34)}}>{e.short}</text>}
         <title>{e.name + " - " + ctx.placeOf(ctx.placementAt(e.id, cursor)).name}</title>
       </g>
     );
@@ -2190,8 +2221,11 @@ function Tideline({ entities, days, ctx, onPickDay, label }){
                   ? <g key={ring+"-"+k}>
                       <circle cx={x(i)} cy={cy} r="8.5" fill={o.e.color}
                               stroke={(o.e.color||"").toUpperCase()==="#FFFFFF"?"#C7CDD6":"none"} strokeWidth="1.4" />
-                      <text x={x(i)} y={cy} dy="0.34em" textAnchor="middle" className="wa-tide__mono"
-                            fill={readableText(o.e.color)}>{o.e.short}</text>
+                      {o.e.kind === "pet"
+                        ? <SvgPaw cx={x(i)} cy={cy} size={11} fill={readableText(o.e.color)} />
+                        : <text x={x(i)} y={cy} dy="0.34em" textAnchor="middle" className="wa-tide__mono"
+                                fill={readableText(o.e.color)}
+                                style={{fontSize: 8 * (shortScale(o.e.short)/0.34)}}>{o.e.short}</text>}
                     </g>
                   : <rect key={ring+"-"+k} x={x(i)-Math.min(3,colw/2)} y={cy-2}
                           width={Math.min(6,colw)} height="4" rx="1.5" fill={o.e.color} />;
@@ -2348,6 +2382,13 @@ function App(){
           routine: SEED_ROUTINE[e.id] || { base: e.home || "sanantonio" },
         }));
         log("MIGRATE","seeded routines for "+needs.length+" entities");
+      }
+      // One-time: adopt the family's real initials (KG, JR, Pops...). Stamped so
+      // it runs ONCE and never fights a later hand-edit in the person editor.
+      const shorts = ents.filter(e => SEED_SHORTS[e.id] && e.shortsV !== 2);
+      if(shorts.length){
+        shorts.forEach(e => store.upsert("entities", { id:e.id, short:SEED_SHORTS[e.id], shortsV:2 }));
+        log("MIGRATE","applied new initials to "+shorts.length+" entities");
       }
     }
   }, [store.authReady, store.authed, store.sync, store.data.entities, store.data.places]);
