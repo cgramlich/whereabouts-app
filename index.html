@@ -440,12 +440,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.14.0";
+const APP_VERSION = "0.14.1";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-09-28.1";
+const BUILD = "2026-09-28.2";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -543,16 +543,13 @@ const PLACE_KINDS = ["metro","work","custody","school","boarding","other"];
 const DEFAULT_PALETTE = ["#1E40AF","#DB2777","#0D9488","#EA580C","#6D28D9","#DC2626","#A16207",
   "#C026D3","#0EA5E9","#16A34A","#18181B","#7C4A2D","#FFFFFF"];
 
-// MIGRATION ONLY - DELETE IN THE NEXT RELEASE. Places created before places
-// carried their own coordinates get them copied onto their record, once, by the
-// coordinate migration in the seed effect. After every device has run it, the
-// coordinates live in the database and this table is dead weight.
-const PLACE_COORDS_MIGRATION = {
-  sanantonio:[-98.49,29.42], dallas:[-96.80,32.78], austin:[-97.74,30.27],
-  boston:[-71.06,42.36], auburn:[-85.48,32.61], chicago:[-87.63,41.88],
-  newyork:[-74.01,40.71], bethesda:[-77.10,38.98], miami:[-80.19,25.76],
-  office:[-96.80,32.78], sardinia:[9.51,41.13], capri:[14.24,40.55], santorini:[25.46,36.39],
-};
+// MIGRATION ONLY - DELETE IN THE NEXT RELEASE (after the account has been opened
+// once on v0.14.1). Switches the original two-letter initials to the family's chosen
+// ones. Keyed by the OLD initials, never by person, because this file is public.
+// Runs once per person (stamped `shortsV: 2`) and only while their initials are still
+// the original code, so a hand edit in the person editor always wins.
+const SHORTS_MIGRATION = { Po:"Pops", Kr:"KG", Je:"JG", CJ:"JR", Sa:"SG",
+  Ha:"HG", Mo:"MG", Br:"BM", Gr:"GM", So:"SS" };
 
 /* ============================================================
    PLACEMENT RESOLVER. Precedence (most specific first):
@@ -2311,14 +2308,11 @@ function App(){
       needs.forEach(e => store.upsert("entities", { id:e.id, routine:{ base: e.home || "" } }));
       log("MIGRATE","gave "+needs.length+" entities a home-base routine");
     }
-    // Places made before places carried coordinates get them copied onto their
-    // own record, once. Skips any place that already has coordinates, so it never
-    // overwrites a hand edit. See PLACE_COORDS_MIGRATION.
-    const noCoords = plcs.filter(p => p.lat == null && PLACE_COORDS_MIGRATION[p.id]);
-    if(noCoords.length){
-      noCoords.forEach(p => { const ll = PLACE_COORDS_MIGRATION[p.id];
-        store.upsert("places", { id:p.id, lon:ll[0], lat:ll[1] }); });
-      log("MIGRATE","copied coordinates onto "+noCoords.length+" places");
+    // See SHORTS_MIGRATION.
+    const shorts = ents.filter(e => e.kind === "person" && e.shortsV !== 2 && SHORTS_MIGRATION[e.short]);
+    if(shorts.length){
+      shorts.forEach(e => store.upsert("entities", { id:e.id, short:SHORTS_MIGRATION[e.short], shortsV:2 }));
+      log("MIGRATE","switched initials for "+shorts.length+" people");
     }
   }, [store.authReady, store.authed, store.pulledOnce, store.data.entities, store.data.places]);
 
