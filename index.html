@@ -440,12 +440,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.13.1";
+const APP_VERSION = "0.14.0";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-08-27.1";
+const BUILD = "2026-09-28.1";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -498,139 +498,71 @@ function readableText(hex){ const { r,g,b } = hexToRgb(hex); const lum = (0.299*
 function firstName(name){ const p=(name||"").split(" "); const last=p[p.length-1]; return /^(jr|sr|ii|iii)\.?$/i.test(last) && p.length>1 ? `${p[0]} ${last}` : p[0]; }
 
 /* ============================================================
-   SEED DATA - the family + places. On a brand-new account (or local
-   preview) these populate the entities/places collections once; after
-   that everything is edited in the app and lives in the store.
+   SEED DATA - a FICTIONAL demo family. Used exactly once: to populate a
+   brand-new, empty account (or the local preview) so the app is not blank.
+   After that every person, place and routine is edited in the app and lives
+   in the store.
+
+   PRIVACY RULE (Chris, 2026-09-28): this file is served from a PUBLIC GitHub
+   repo, so it must never contain the real family - no names, home cities,
+   schools or routines. The real family exists only in the database. Road not
+   taken: seeding the real family from here, which published children's names
+   and whereabouts to anyone who opened the repo.
    ============================================================ */
-// Molly AND Hank are based in DALLAS - that is where each goes when school is
-// out - so Auburn and Boston correctly render as "away" (and, under the
-// three-state model, as "expected" during term). Keep in step with the cloud
-// `entities` rows.
-const HOME_OF = {
-  chris:"sanantonio", kristin:"sanantonio", jenna:"austin", hank:"dallas", cjr:"dallas",
-  molly:"dallas", samuel:"dallas", bellarose:"sanantonio", gracieann:"sanantonio", sophia:"sanantonio",
-  gus:"sanantonio", graham:"sanantonio", lola:"sanantonio",
-};
-const SEED_ROSTER = [
-  { id:"chris",     name:"Pops",      short:"Pops", kind:"person", color:"#1E40AF" },
-  { id:"kristin",   name:"Kristin",   short:"KG", kind:"person", color:"#DB2777" },
-  { id:"jenna",     name:"Jenna",     short:"JG", kind:"person", color:"#0D9488" },
-  { id:"cjr",       name:"Chris Jr.", short:"JR", kind:"person", color:"#EA580C" },
-  { id:"samuel",    name:"Samuel",    short:"SG", kind:"person", color:"#6D28D9" },
-  { id:"hank",      name:"Hank",      short:"HG", kind:"person", color:"#DC2626" },
-  // Olive, not amber: amber collided with Hank's red + CJR's orange, a warm triple
-  // that is indistinguishable at token size and collapses entirely under protanopia.
-  { id:"molly",     name:"Molly",     short:"MG", kind:"person", color:"#A16207" },
-  // Magenta, not rose: rose differed from Kristin's pink only in LIGHTNESS, so the
-  // two merged at a glance. Separating by hue survives small sizes and distance.
-  { id:"bellarose", name:"Bellarose", short:"BM", kind:"person", color:"#C026D3" },
-  { id:"gracieann", name:"Gracieann", short:"GM", kind:"person", color:"#0EA5E9" },
-  { id:"sophia",    name:"Sophia",    short:"SS", kind:"person", color:"#16A34A" },
-  { id:"gus",       name:"Gus",       short:"Gu", kind:"pet",    color:"#18181B" },
-  { id:"graham",    name:"Graham",    short:"Gh", kind:"pet",    color:"#7C4A2D" },
-  { id:"lola",      name:"Lola",      short:"Lo", kind:"pet",    color:"#FFFFFF" },
-];
-// The routines the app shipped with, so migrating an existing family reproduces
-// exactly what the old hardcoded rules did. Must be declared BEFORE SEED_ENTITIES,
-// which reads it (const has no hoisting - referencing it earlier throws).
-const SEED_ROUTINE = {
-  chris:     { base:"sanantonio", days:{ "2":{place:"dallas",from:10,to:24,outside:"sanantonio"},
-                                          "3":{place:"office",from:8,to:18,outside:"dallas"},
-                                          "4":{place:"dallas",from:0,to:10,outside:"sanantonio"} } },
-  kristin:   { base:"sanantonio" },
-  jenna:     { base:"austin" },
-  cjr:       { base:"dallas" },
-  samuel:    { base:"dallas" },
-  hank:      { base:"boston" },
-  molly:     { base:"auburn" },
-  bellarose: { base:"sanantonio" },
-  gracieann: { base:"sanantonio" },
-  sophia:    { base:"sanantonio" },
-  gus:       { base:"sanantonio", follows:{ entityId:"chris", fallback:"dallas" } },
-  graham:    { base:"sanantonio", follows:{ entityId:"chris", fallback:"dallas" } },
-  // Lola rides with Kristin. Because Kristin's own trips are all trips WITH Chris,
-  // and Lola stays behind on those, the fallback is simply San Antonio. LIMITATION:
-  // if Kristin ever travels solo, this keeps Lola home rather than taking her -
-  // pin Lola for that trip, or extend `follows` with a "go anywhere" mode.
-  lola:      { base:"sanantonio", follows:{ entityId:"kristin", fallback:"sanantonio" } },
-};
+const SEED_ENTITIES = [
+  { id:"demo-dana",    name:"Dana",    short:"DE", kind:"person", color:"#1E40AF", home:"demo-home",
+    // Office in the city every Wednesday: "away, as usual", never an exception.
+    routine:{ base:"demo-home", days:{ "3":{ place:"demo-office", from:8, to:18, outside:"demo-home" } } } },
+  { id:"demo-sam",     name:"Sam",     short:"SE", kind:"person", color:"#DB2777", home:"demo-home",
+    routine:{ base:"demo-home" } },
+  { id:"demo-maya",    name:"Maya",    short:"ME", kind:"person", color:"#0D9488", home:"demo-home",
+    // At university all year: home base is still the family home, so term time
+    // reads "away, as usual" and a visit home reads "home".
+    routine:{ base:"demo-university" } },
+  { id:"demo-leo",     name:"Leo",     short:"LE", kind:"person", color:"#EA580C", home:"demo-home",
+    routine:{ base:"demo-home" },
+    custody:{ place:"demo-otherhouse", pattern:"alt-weekends", anchor:"2026-01-03" } },
+  { id:"demo-biscuit", name:"Biscuit", short:"Bi", kind:"pet",    color:"#7C4A2D", home:"demo-home",
+    routine:{ base:"demo-home", follows:{ entityId:"demo-dana", fallback:"demo-home" } } },
+].map((e, i) => ({ ...e, order: i }));
 
-const SEED_ENTITIES = SEED_ROSTER.map((e, i) => ({
-  ...e, home: HOME_OF[e.id] || "sanantonio", order: i,
-  routine: SEED_ROUTINE[e.id] || { base: HOME_OF[e.id] || "sanantonio" },
-}));
-
-const SEED_PLACE_LIST = [
-  { id:"sanantonio",  name:"San Antonio", full:"Spring Branch · San Antonio area", kind:"metro" },
-  { id:"dallas",      name:"Dallas",      full:"Dallas, TX (house & apartments)",       kind:"metro" },
-  { id:"austin",      name:"Austin",      full:"Austin · Buda, TX",                kind:"metro" },
-  { id:"boston",      name:"Boston",      full:"Boston, MA · school & summer work", kind:"metro" },
-  { id:"dads",        name:"Dad's",       full:"Sophia's dad's house",                  kind:"custody" },
-  { id:"office",      name:"Office",      full:"At the office",                         kind:"work" },
-  { id:"auburn",      name:"Auburn",      full:"Auburn, AL · school",               kind:"school" },
-  { id:"jordanvalley",name:"Boarding",    full:"Jordan Valley Retrievers (kennel)",     kind:"boarding" },
-];
-const SEED_PLACES = SEED_PLACE_LIST.map((p, i) => ({ ...p, order: i }));
+const SEED_PLACES = [
+  { id:"demo-home",       name:"Home",          full:"The family home",   kind:"metro",   lat:39.74, lon:-104.99 },
+  { id:"demo-office",     name:"Office",        full:"At the office",     kind:"work",    lat:39.75, lon:-104.99 },
+  { id:"demo-university", name:"University",    full:"Away at school",    kind:"school",  lat:47.66, lon:-122.31 },
+  { id:"demo-otherhouse", name:"Other parent's", full:"Custody weekends", kind:"custody" },
+].map((p, i) => ({ ...p, order: i }));
 const PLACE_KINDS = ["metro","work","custody","school","boarding","other"];
-const DEFAULT_COLOR = { chris:"#1E40AF", kristin:"#DB2777", jenna:"#0D9488", cjr:"#EA580C", samuel:"#6D28D9",
-  hank:"#DC2626", molly:"#A16207", bellarose:"#C026D3", gracieann:"#0EA5E9", sophia:"#16A34A",
-  gus:"#18181B", graham:"#7C4A2D", lola:"#FFFFFF" };
+
+// The curated default palette, in roster order. "Reset colours" re-applies it by
+// each person's position, not their name. Chosen for separation at token size:
+// the olive (#A16207) replaced an amber that formed a warm triple with the red
+// and orange beside it; the magenta (#C026D3) replaced a rose that differed from
+// the pink only in lightness; the brown pet colour exists because two black dogs
+// are indistinguishable at token size.
+const DEFAULT_PALETTE = ["#1E40AF","#DB2777","#0D9488","#EA580C","#6D28D9","#DC2626","#A16207",
+  "#C026D3","#0EA5E9","#16A34A","#18181B","#7C4A2D","#FFFFFF"];
+
+// MIGRATION ONLY - DELETE IN THE NEXT RELEASE. Places created before places
+// carried their own coordinates get them copied onto their record, once, by the
+// coordinate migration in the seed effect. After every device has run it, the
+// coordinates live in the database and this table is dead weight.
+const PLACE_COORDS_MIGRATION = {
+  sanantonio:[-98.49,29.42], dallas:[-96.80,32.78], austin:[-97.74,30.27],
+  boston:[-71.06,42.36], auburn:[-85.48,32.61], chicago:[-87.63,41.88],
+  newyork:[-74.01,40.71], bethesda:[-77.10,38.98], miami:[-80.19,25.76],
+  office:[-96.80,32.78], sardinia:[9.51,41.13], capri:[14.24,40.55], santorini:[25.46,36.39],
+};
 
 /* ============================================================
    PLACEMENT RESOLVER. Precedence (most specific first):
    journey > pin > trip > custody > recurring rule.
    journey/pin/trip come from the store's `placements` collection;
-   custody + the per-person rule are code-level defaults for now
-   (slice 3b turns them into editable schedules).
+   custody and the recurring routine come from each person's own record.
+   Nothing about any particular family is hardcoded here.
    ============================================================ */
 function ymdNum(date){ return date.getFullYear()*10000 + (date.getMonth()+1)*100 + date.getDate(); }
 function strToYmd(s){ const a=s.split("-").map(Number); return a[0]*10000 + a[1]*100 + a[2]; }
-const isSummer = (d) => { const m=d.getMonth(); return m>=5 && m<=7; };
-const isTerm = (d) => !isSummer(d);
-// No custody rotation is configured. The prototype's placeholder (Sophia at her
-// dad's on alternating weekends) was a GUESS and is switched off: per Chris
-// (2026-08-01) Sophia is in San Antonio for the rest of 2026, until further
-// notice. Individual away-days can still be entered as pins/trips. Slice 3b adds
-// a real, editable custody schedule (rotation + single-day exceptions).
-function custodyPlace(entityId, date){
-  return null;
-}
-// Recurring per-person default. Editable in 3b.
-// Sun=0 Mon=1 Tue=2 Wed=3 Thu=4 Fri=5 Sat=6
-function rulePlace(entityId, date){
-  const day = date.getDay();
-  const h = date.getHours();
-  switch(entityId){
-    // Dallas from Tuesday morning to Thursday morning each week, in the office on
-    // Wednesday; San Antonio the rest of the time. Trips already entered override
-    // this. Some weekends are also Dallas - to be entered individually later.
-    case "chris":
-      if(day===2) return h < 10 ? "sanantonio" : "dallas";      // Tue: up in the morning
-      if(day===3) return (h >= 8 && h < 18) ? "office" : "dallas"; // Wed: office day
-      if(day===4) return h < 10 ? "dallas" : "sanantonio";      // Thu: home in the morning
-      return "sanantonio";
-    case "kristin": return "sanantonio";
-    // Austin through end of May 2027 (law school). The prototype's summer-in-Dallas
-    // clerking pattern was a guess and is removed. Beyond May 2027 is UNKNOWN -
-    // revisit rather than let this quietly keep asserting Austin forever.
-    case "jenna":   return "austin";
-    case "cjr":     return "dallas";
-    case "hank":    return "boston";
-    // Molly's default is Auburn (school). Breaks + summer are entered as real
-    // date-range placements (Dallas), which override this rule.
-    case "molly":   return "auburn";
-    case "samuel":  return "dallas";
-    case "bellarose":
-    case "gracieann":
-    case "sophia":  return "sanantonio";
-    // Gus + Graham normally follow Chris - resolved in placementAt (which can see
-    // his trips, not just this rule). These are only a safety net.
-    case "gus":
-    case "graham":  return "dallas";
-    case "lola":    return "sanantonio";
-    default:        return HOME_OF[entityId] || "sanantonio";
-  }
-}
 
 /* ============================================================
    ROUTINES AS DATA (slice 3b)
@@ -642,14 +574,16 @@ function rulePlace(entityId, date){
        follows: { entityId, fallback }      // pets: be with someone, else fallback
      }
      custody = { place, pattern, anchor }   // "alt-weekends" | "week-on-off"
-   Entities saved before this existed have no `routine`; they fall back to the
-   legacy rulePlace switch so nothing changes until they are migrated.
+   A record with no `routine` is simply at its home base. (Until 2026-09-28 it
+   fell back to a hardcoded per-person switch; every stored record had been
+   migrated to a routine by then, so that switch was removed with the real
+   family's data - see SEED DATA.)
    ============================================================ */
 const WEEKDAY_KEYS = ["0","1","2","3","4","5","6"];
 
 function evalRoutine(ent, date, resolveFollowed){
   const r = ent && ent.routine;
-  if(!r) return null;                                   // -> caller uses legacy
+  if(!r) return null;                                   // -> caller uses home base
   if(r.follows && r.follows.entityId){
     const p = resolveFollowed(r.follows.entityId, date);
     const fb = r.follows.fallback || ent.home;
@@ -684,30 +618,13 @@ function evalCustody(ent, date){
   return null;
 }
 
-// The routines the app shipped with, so migrating an existing family reproduces
-// exactly what the old hardcoded rules did.
-
-// Where the ROUTINE alone would put someone - rules and custody only, ignoring
-// pins, trips and journeys. Comparing this against the real placement is what
-// separates "at school / at the office, as always" from "actually somewhere
-// unusual". Recursive for the dogs so their routine follows Chris's routine, not
-// his trip.
-function routineAt(entityId, date){
-  const cust = custodyPlace(entityId, date); if(cust) return cust;
-  if(entityId === "gus" || entityId === "graham"){
-    return routineAt("chris", date) === "sanantonio" ? "sanantonio" : "dallas";
-  }
-  return rulePlace(entityId, date);
-}
-
 // Build a resolver bound to the current placements + home-base map.
 // INDEXED BY ENTITY at construction: pins and journeys become O(1) date lookups
 // and trips only scan that one entity's trips. The previous version scanned the
 // whole placements array three times per call, and dayPlacement probes 11 hours -
 // so a single Year render (13 entities x 42 cells x 12 months) cost roughly
 // 216,000 array scans. Build this ONCE per placements change, never in a render.
-// `entById` carries each person's EDITABLE routine/custody; entities saved before
-// slice 3b have none, and fall back to the legacy rulePlace switch.
+// `entById` carries each person's EDITABLE routine/custody.
 function makeResolver(placements, homeOf, entById){
   const list = placements || [];
   const byEntity = {};                 // entityId -> { pins:{ymd:place}, journeys:{ymd:j}, trips:[] }
@@ -750,20 +667,16 @@ function makeResolver(placements, homeOf, entById){
   }
   const ents = entById || {};
 
-  // The recurring layer: the person's own editable routine if they have one,
-  // otherwise the legacy hardcoded rule. A `follows` routine resolves against the
-  // followed person's REAL placement, so the dogs land in Dallas when Chris is
-  // away on a trip, not just when his routine says Dallas.
+  // The recurring layer: custody, then the person's own editable routine, then
+  // their home base. A `follows` routine resolves against the followed person's
+  // REAL placement, so a pet goes to its fallback while its person is away on a
+  // trip, not only when their routine says so.
   function recurringAt(entityId, date){
     const ent = ents[entityId];
     const cust = evalCustody(ent, date); if(cust) return cust;
     const viaRoutine = evalRoutine(ent, date, (id, d) => placementAt(id, d));
     if(viaRoutine) return viaRoutine;
-    const legacyCust = custodyPlace(entityId, date); if(legacyCust) return legacyCust;
-    if(entityId === "gus" || entityId === "graham"){
-      return placementAt("chris", date) === "sanantonio" ? "sanantonio" : "dallas";
-    }
-    return rulePlace(entityId, date);
+    return homeOf[entityId];
   }
 
   function placementAt(entityId, date){
@@ -802,14 +715,16 @@ function makeResolver(placements, homeOf, entById){
 
   // Routine-only resolution (no pins/trips/journeys), used to decide whether the
   // real placement is "expected" or "unusual". Mirrors recurringAt but the
-  // `follows` lookup resolves against the followed person's ROUTINE, so the dogs'
-  // routine is "with Chris as usual" rather than "wherever his trip took him".
+  // `follows` lookup resolves against the followed person's ROUTINE, so a pet's
+  // routine is "with their person, as usual" rather than "wherever the trip went".
+  // WARNING: merging this with recurringAt looks like a simplification and breaks
+  // the unusual-state test for every pet.
   function routineOnly(entityId, date){
     const ent = ents[entityId];
     const cust = evalCustody(ent, date); if(cust) return cust;
     const viaRoutine = evalRoutine(ent, date, (id, d) => routineOnly(id, d));
     if(viaRoutine) return viaRoutine;
-    return routineAt(entityId, date);                  // legacy path
+    return homeOf[entityId];
   }
 
   // The routine's headline place for a day, same aggregation as dayPlacement.
@@ -879,6 +794,33 @@ function makeResolver(placements, homeOf, entById){
            anyTrip, awayOn, statusOn };
 }
 
+/* ------------------------------------------------------------
+   DISTANCE BANDS - how far an exception is from the person's home base, in
+   three coarse bands. Gives a Tideline exception its height: nearby sits just
+   above the line, overseas near the top. Computed from the places' own
+   coordinates, so a newly added place is banded correctly with no code change.
+   (Until 2026-09-28 this was a hand-maintained table of place ids, which also
+   listed the family's trip destinations in a public file.)
+   A place with no coordinates is treated as "a flight away", the safe middle.
+   ------------------------------------------------------------ */
+const NEARBY_KM = 500;       // a drive: covers a same-state commute
+const FLIGHT_KM = 5000;      // anything within the continent; beyond is overseas
+function placeLonLat(p){
+  return (p && p.lat != null && p.lon != null) ? [Number(p.lon), Number(p.lat)] : null;
+}
+function kmBetween(a, b){
+  const rad = Math.PI / 180, R = 6371;
+  const dLat = (b[1]-a[1])*rad, dLon = (b[0]-a[0])*rad;
+  const h = Math.sin(dLat/2)**2 + Math.cos(a[1]*rad)*Math.cos(b[1]*rad)*Math.sin(dLon/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+function distanceBand(place, homePlace){
+  const a = placeLonLat(homePlace), b = placeLonLat(place);
+  if(!a || !b) return 2;
+  const km = kmBetween(a, b);
+  return km < NEARBY_KM ? 1 : km < FLIGHT_KM ? 2 : 3;
+}
+
 /* ============================================================ LOCAL STORAGE ============================================================ */
 const NS = "whereabouts:";
 const lsGet = (k, fb) => { try { const v = localStorage.getItem(NS+k); return v===null ? fb : JSON.parse(v); } catch(e){ log("ERROR","lsGet "+k+": "+e.message); return fb; } };
@@ -941,6 +883,9 @@ function useStore(){
   const [authed, setAuthed] = useState(false);
   const [authEmail, setAuthEmail] = useState("");
   const [authReady, setAuthReady] = useState(false);
+  // True once a pull from the server has completed this session. First-run
+  // seeding and every data migration wait for it (see the seed effect).
+  const [pulledOnce, setPulledOnce] = useState(false);
   const dirtyRef = useRef(dirty); dirtyRef.current = dirty;
   const dataRef = useRef(data); dataRef.current = data;
   const authedRef = useRef(false);
@@ -986,6 +931,7 @@ function useStore(){
       }
       dataRef.current = nextData; setData(nextData);
       setSync(FILES.some(f=>dirtyRef.current[f])?"pending":"idle"); setSyncMsg("");
+      setPulledOnce(true);
       log("SYNC","pull complete");
       await pushDirty();
     }catch(e){ setSync("error"); setSyncMsg(e.message||"Sync failed"); log("ERROR","pull: "+e.message); }
@@ -1098,7 +1044,7 @@ function useStore(){
     await pull();
   }, [pull]);
 
-  return { cfg, saveCfg, data, sync, syncMsg, online, dirty, authed, authEmail, authReady,
+  return { cfg, saveCfg, data, sync, syncMsg, online, dirty, authed, authEmail, authReady, pulledOnce,
            signIn, signUp, signOut, pull, pushDirty, upsert, seedMany, remove, restore,
            reloadFromCloud, setSync };
 }
@@ -1109,11 +1055,6 @@ function useStore(){
 //   expected -> half-strength (at school / at the office, as always)
 //   unusual  -> full color
 // `calm` is kept as a shorthand for state="home".
-// The family's real initials, applied once to existing records by the migration
-// in the seed effect (`shortsV`). Pets are omitted - they show a paw, not text.
-const SEED_SHORTS = { chris:"Pops", kristin:"KG", jenna:"JG", cjr:"JR", samuel:"SG",
-  hank:"HG", molly:"MG", bellarose:"BM", gracieann:"GM", sophia:"SS" };
-
 // A paw glyph for use inside SVG views, sized and centred on a point. Pets show
 // this instead of initials; their colour is what identifies them.
 function SvgPaw({ cx, cy, size, fill }){
@@ -1126,7 +1067,7 @@ function SvgPaw({ cx, cy, size, fill }){
   );
 }
 
-// Initials are usually two characters, but not always ("Pops"). Scale the text
+// Initials are usually two characters, but not always ("Nana"). Scale the text
 // down as they get longer instead of truncating someone's name.
 function shortScale(s){
   const n = (s || "").length;
@@ -1150,8 +1091,8 @@ function Token({ entity, size=34, title, onClick, calm, state }){
         borderRadius:isPet?size*0.32:"50%", border, fontSize:size*shortScale(entity.short),
         cursor:onClick?"pointer":"default" }}>
       {/* Pets carry a paw INSTEAD of initials - their colour already says which dog
-          it is. The paw takes the contrasting ink rather than always black, or Gus
-          (#18181B) would be a black paw on a black token. */}
+          it is. The paw takes the contrasting ink rather than always black, or a
+          near-black dog (#18181B) would be a black paw on a black token. */}
       {isPet
         ? <svg className="wa-paw--big" viewBox="0 0 24 24" width={size*0.62} height={size*0.62}
                style={{ fill:txt }} aria-hidden="true">
@@ -1229,7 +1170,7 @@ function MonthView({ entities, cursor, ctx, onPickDay }){
           const inMonth = d.getMonth() === m;
           const away = entities.map((e) => ({ e, loc:ctx.dayPlacement(e.id, d) })).filter((x) => x.loc !== ctx.homeOf[x.e.id]);
           const tripDay = ctx.anyTrip(d);
-          const boardingDay = away.some((x) => x.loc === "jordanvalley");
+          const boardingDay = away.some((x) => ctx.placeOf(x.loc).kind === "boarding");
           return (
             <button key={d.toISOString()}
               className={"wa-mday"+(inMonth?"":" is-out")+(sameDay(d,today)?" is-today":"")+(tripDay?" is-trip":"")+(boardingDay?" is-board":"")}
@@ -1377,10 +1318,10 @@ function PersonEditor({ entity, places, store, onClose, toast }){
   const [short,setShort]=useState(t.short||"");
   const [kind,setKind]=useState(t.kind||"person");
   const [color,setColor]=useState(t.color||"#1E40AF");
-  const [home,setHome]=useState(t.home || (places[0]?places[0].id:"sanantonio"));
+  const [home,setHome]=useState(t.home || (places[0]?places[0].id:""));
   // --- the recurring routine (slice 3b): editable instead of hardcoded ---
   const r0 = t.routine || {};
-  const [base,setBase]=useState(r0.base || t.home || (places[0]?places[0].id:"sanantonio"));
+  const [base,setBase]=useState(r0.base || t.home || (places[0]?places[0].id:""));
   const [dayOv,setDayOv]=useState(()=> Object.entries(r0.days||{})
       .map(([d,v]) => ({ d:Number(d), place:v.place, from:v.from==null?0:v.from, to:v.to==null?24:v.to, outside:v.outside||"" })));
   const [followId,setFollowId]=useState((r0.follows&&r0.follows.entityId)||"");
@@ -1393,7 +1334,7 @@ function PersonEditor({ entity, places, store, onClose, toast }){
 
   function save(){
     if(!name.trim()){ toast("Name it first"); return; }
-    // Up to FOUR characters: most are two ("KG"), but not all ("Pops").
+    // Up to FOUR characters: most are two ("DE"), but not all ("Nana").
     const s = ((short||name.slice(0,2)).trim()||name.slice(0,2)).slice(0,4);
     const days = {};
     dayOv.forEach(o => { if(o.place) days[String(o.d)] = {
@@ -1509,9 +1450,8 @@ function PlaceEditor({ place, store, onClose, toast }){
   const [kind,setKind]=useState(t.kind||"metro");
   // Coordinates are optional. A place without them simply appears beside the map
   // rather than being given an invented position.
-  const seedLL = PLACE_COORDS[t.id];
-  const [lat,setLat]=useState(t.lat != null ? String(t.lat) : (seedLL ? String(seedLL[1]) : ""));
-  const [lon,setLon]=useState(t.lon != null ? String(t.lon) : (seedLL ? String(seedLL[0]) : ""));
+  const [lat,setLat]=useState(t.lat != null ? String(t.lat) : "");
+  const [lon,setLon]=useState(t.lon != null ? String(t.lon) : "");
   function save(){
     if(!name.trim()){ toast("Name it first"); return; }
     const la = lat.trim()===""? null : Number(lat), lo = lon.trim()===""? null : Number(lon);
@@ -1525,7 +1465,7 @@ function PlaceEditor({ place, store, onClose, toast }){
     <div className="wa-modalscrim" onClick={onClose}>
       <div className="wa-sheet" onClick={(e)=>e.stopPropagation()} role="dialog" aria-label="Edit place">
         <div className="wa-sheet__head"><h2>{t.id?"Edit place":"Add place"}</h2><button className="wa-x" onClick={onClose}>{"×"}</button></div>
-        <div className="wa-field"><span className="wa-label">Name</span><input className="wa-input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Dallas" autoFocus /></div>
+        <div className="wa-field"><span className="wa-label">Name</span><input className="wa-input" value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. Denver" autoFocus /></div>
         <div className="wa-field"><span className="wa-label">Detail</span><input className="wa-input" value={full} onChange={e=>setFull(e.target.value)} placeholder="e.g. house & apartments" /></div>
         <div className="wa-field"><span className="wa-label">Kind</span>
           <select className="wa-select" value={kind} onChange={e=>setKind(e.target.value)}>{PLACE_KINDS.map(k=><option key={k} value={k}>{k}</option>)}</select></div>
@@ -1771,22 +1711,6 @@ function projectAlbers(lon, lat){
   return { x:(x - US_PROJ.minx)*US_PROJ.scale, y:(US_PROJ.maxy - y)*US_PROJ.scale };
 }
 
-// Coordinates for the places the app ships with. Any place can carry its own
-// lat/lon (editable in the place editor); this is only the seed.
-// How far from home a place is, in three coarse bands. Gives a Tideline exception
-// its height: nearby sits just above the line, overseas near the top. Anything
-// unlisted is treated as "a flight away", which is the safe middle assumption.
-const TIDE_RING = { sanantonio:1, dallas:1, austin:1, office:1,
-  boston:2, auburn:2, chicago:2, newyork:2, bethesda:2, miami:2,
-  sardinia:3, capri:3, santorini:3 };
-
-const PLACE_COORDS = {
-  sanantonio:[-98.49,29.42], dallas:[-96.80,32.78], austin:[-97.74,30.27],
-  boston:[-71.06,42.36], auburn:[-85.48,32.61], chicago:[-87.63,41.88],
-  newyork:[-74.01,40.71], bethesda:[-77.10,38.98], miami:[-80.19,25.76],
-  office:[-96.80,32.78],                       // the office is in Dallas
-};
-
 function MapToday({ entities, cursor, ctx, onPick }){
   const [full,setFull] = useState(false);
 
@@ -1923,7 +1847,7 @@ function MapToday({ entities, cursor, ctx, onPick }){
     const placed = [], offMap = [];
     byPlace.forEach((members, pid) => {
       const p = ctx.placeOf(pid);
-      const ll = (p.lat != null && p.lon != null) ? [p.lon, p.lat] : PLACE_COORDS[pid];
+      const ll = placeLonLat(p);
       if(!ll){ offMap.push({ pid, place:p, members }); return; }
       const pt = projectAlbers(ll[0], ll[1]);
       // Outside the lower-48 frame (Europe, Hawaii...) - list it instead of
@@ -1935,7 +1859,7 @@ function MapToday({ entities, cursor, ctx, onPick }){
     });
 
     // Nudge overlapping clusters apart, keeping a leader line back to the true
-    // city point. Texas alone puts San Antonio, Austin and Dallas within ~80 units.
+    // city point. Three cities in one state can sit within ~80 units of each other.
     const radius = (g) => 16 + Math.ceil(g.members.length/3)*11;
     for(let iter=0; iter<80; iter++){
       for(let i=0;i<placed.length;i++){
@@ -2210,7 +2134,7 @@ function Tideline({ entities, days, ctx, onPickDay, label }){
           if(!row.out.length) return null;
           const byRing = {};
           row.out.forEach(o => {
-            const r = TIDE_RING[o.place] || 2;
+            const r = distanceBand(ctx.placeOf(o.place), ctx.placeOf(o.e.home));
             (byRing[r] = byRing[r] || []).push(o);
           });
           return (
@@ -2357,46 +2281,51 @@ function App(){
 
   useEffect(()=>{ const id=setInterval(()=>setTick(t=>t+1),60000); return ()=>clearInterval(id); },[]);
 
-  // First-run seed: brand-new account (or local preview) gets the roster + places.
+  // First-run seed + one-time data migrations.
+  //
+  // RULE: when signed in, nothing here runs until a pull from the server has
+  // SUCCEEDED this session (`pulledOnce`). WHY: a whole collection is saved by
+  // replacing it on the server. Before this guard, a brand-new device that signed
+  // in while offline saw an empty local cache, seeded the demo family, and its
+  // next save would have replaced the real family's people and places on the
+  // server with the demo ones. A migration running on a stale cache has the same
+  // shape: it would push old rows over newer edits made on another device.
   const seededRef = useRef(false);
   useEffect(()=>{
     if(seededRef.current) return;
     if(!store.authReady) return;
     if(CONFIGURED && !store.authed) return;
-    if(CONFIGURED && store.sync==="busy") return;   // wait for the initial pull to settle
+    if(CONFIGURED && !store.pulledOnce) return;
     const ents = store.data.entities||[], plcs = store.data.places||[];
+    seededRef.current = true;
     if(ents.length===0 && plcs.length===0){
-      seededRef.current = true;
       store.seedMany("places", SEED_PLACES);
       store.seedMany("entities", SEED_ENTITIES);
-      log("SEED","first-run seed of roster + places");
-    } else {
-      seededRef.current = true;
-      // One-time migration: give anyone without a routine the one that matches
-      // what the hardcoded rules were already doing, so the recurring layer
-      // becomes editable data without changing a single resolved placement.
-      const needs = ents.filter(e => !e.routine);
-      if(needs.length){
-        needs.forEach(e => store.upsert("entities", {
-          id: e.id,
-          routine: SEED_ROUTINE[e.id] || { base: e.home || "sanantonio" },
-        }));
-        log("MIGRATE","seeded routines for "+needs.length+" entities");
-      }
-      // One-time: adopt the family's real initials (KG, JR, Pops...). Stamped so
-      // it runs ONCE and never fights a later hand-edit in the person editor.
-      const shorts = ents.filter(e => SEED_SHORTS[e.id] && e.shortsV !== 2);
-      if(shorts.length){
-        shorts.forEach(e => store.upsert("entities", { id:e.id, short:SEED_SHORTS[e.id], shortsV:2 }));
-        log("MIGRATE","applied new initials to "+shorts.length+" entities");
-      }
+      log("SEED","first-run seed of the demo family + places");
+      return;
     }
-  }, [store.authReady, store.authed, store.sync, store.data.entities, store.data.places]);
+    // Anyone without a routine gets "usually at their home base", which is exactly
+    // how the resolver already treats them - this only makes it editable.
+    const needs = ents.filter(e => !e.routine);
+    if(needs.length){
+      needs.forEach(e => store.upsert("entities", { id:e.id, routine:{ base: e.home || "" } }));
+      log("MIGRATE","gave "+needs.length+" entities a home-base routine");
+    }
+    // Places made before places carried coordinates get them copied onto their
+    // own record, once. Skips any place that already has coordinates, so it never
+    // overwrites a hand edit. See PLACE_COORDS_MIGRATION.
+    const noCoords = plcs.filter(p => p.lat == null && PLACE_COORDS_MIGRATION[p.id]);
+    if(noCoords.length){
+      noCoords.forEach(p => { const ll = PLACE_COORDS_MIGRATION[p.id];
+        store.upsert("places", { id:p.id, lon:ll[0], lat:ll[1] }); });
+      log("MIGRATE","copied coordinates onto "+noCoords.length+" places");
+    }
+  }, [store.authReady, store.authed, store.pulledOnce, store.data.entities, store.data.places]);
 
   // Derived, sorted family + places from the store.
   const entities = useMemo(()=> [...(store.data.entities||[])].sort((a,b)=>(a.order??999)-(b.order??999)), [store.data.entities]);
   const places   = useMemo(()=> [...(store.data.places||[])].sort((a,b)=>(a.order??999)-(b.order??999)), [store.data.places]);
-  const homeOf   = useMemo(()=>{ const m={}; entities.forEach(e=>{ m[e.id]=e.home||"sanantonio"; }); return m; }, [entities]);
+  const homeOf   = useMemo(()=>{ const m={}; entities.forEach(e=>{ m[e.id]=e.home||""; }); return m; }, [entities]);
   const placesById = useMemo(()=>{ const m={}; places.forEach(p=>{ m[p.id]=p; }); return m; }, [places]);
   const placeOrder = useMemo(()=> places.map(p=>p.id), [places]);
   const entById  = useMemo(()=>{ const m={}; entities.forEach(e=>{ m[e.id]=e; }); return m; }, [entities]);
@@ -2461,7 +2390,7 @@ function App(){
   }
 
   const setColor = (id, color) => store.upsert("entities", { id, color });
-  const resetColors = () => entities.forEach(e => { if(DEFAULT_COLOR[e.id]) store.upsert("entities", { id:e.id, color:DEFAULT_COLOR[e.id] }); });
+  const resetColors = () => entities.forEach((e, i) => store.upsert("entities", { id:e.id, color:DEFAULT_PALETTE[i % DEFAULT_PALETTE.length] }));
   const nextOrder = (arr) => (arr.length ? Math.max(...arr.map(x=>x.order??0)) + 1 : 0);
 
   const isLive = sameDay(cursor, new Date()) && Math.abs(cursor.getHours() - new Date().getHours()) === 0;
