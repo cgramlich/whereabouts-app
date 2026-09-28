@@ -101,8 +101,11 @@ security-hardened but NOT yet deployed).
 - Environment: Windows 11. Keep console/log output ASCII-safe (no emoji).
 
 ## Reference docs (read for full context; keep in sync)
-- Whereabouts START-HERE: `CG Apps\Whereabouts\START-HERE-whereabouts.md`
-- Handoff (design spec): `CG Apps\Whereabouts\whereabouts-handoff.md`
+- **HANDOFF (authoritative, read first): `CG Apps\Whereabouts\HANDOFF.md`.** Kept in
+  Dropbox rather than this repo because this repo is public and the handoff names the family.
+- Briefing (deck-ready, no PII): `CG Apps\Whereabouts\BRIEFING.md`
+- Whereabouts START-HERE: `CG Apps\Whereabouts\START-HERE-whereabouts.md` (original kickoff, historical)
+- Original design spec (superseded): `CG Apps\Whereabouts\whereabouts-original-spec-2026-06-29.md`
 - Architecture: `CG Apps\Whereabouts\whereabouts-architecture.md`
 - Backend CLAUDE.md: `C:\Users\cjgra\whereabouts-backend\CLAUDE.md`
 - Forever Apps starter spec: `CG Apps\Forever Apps\forever-apps-starter-spec.md`
