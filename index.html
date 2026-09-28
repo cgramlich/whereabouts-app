@@ -440,12 +440,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.14.1";
+const APP_VERSION = "0.14.2";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-09-28.2";
+const BUILD = "2026-09-28.3";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -542,14 +542,6 @@ const PLACE_KINDS = ["metro","work","custody","school","boarding","other"];
 // are indistinguishable at token size.
 const DEFAULT_PALETTE = ["#1E40AF","#DB2777","#0D9488","#EA580C","#6D28D9","#DC2626","#A16207",
   "#C026D3","#0EA5E9","#16A34A","#18181B","#7C4A2D","#FFFFFF"];
-
-// MIGRATION ONLY - DELETE IN THE NEXT RELEASE (after the account has been opened
-// once on v0.14.1). Switches the original two-letter initials to the family's chosen
-// ones. Keyed by the OLD initials, never by person, because this file is public.
-// Runs once per person (stamped `shortsV: 2`) and only while their initials are still
-// the original code, so a hand edit in the person editor always wins.
-const SHORTS_MIGRATION = { Po:"Pops", Kr:"KG", Je:"JG", CJ:"JR", Sa:"SG",
-  Ha:"HG", Mo:"MG", Br:"BM", Gr:"GM", So:"SS" };
 
 /* ============================================================
    PLACEMENT RESOLVER. Precedence (most specific first):
@@ -2307,12 +2299,6 @@ function App(){
     if(needs.length){
       needs.forEach(e => store.upsert("entities", { id:e.id, routine:{ base: e.home || "" } }));
       log("MIGRATE","gave "+needs.length+" entities a home-base routine");
-    }
-    // See SHORTS_MIGRATION.
-    const shorts = ents.filter(e => e.kind === "person" && e.shortsV !== 2 && SHORTS_MIGRATION[e.short]);
-    if(shorts.length){
-      shorts.forEach(e => store.upsert("entities", { id:e.id, short:SHORTS_MIGRATION[e.short], shortsV:2 }));
-      log("MIGRATE","switched initials for "+shorts.length+" people");
     }
   }, [store.authReady, store.authed, store.pulledOnce, store.data.entities, store.data.places]);
 
