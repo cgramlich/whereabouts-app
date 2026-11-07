@@ -440,12 +440,12 @@ const LOG = [];
 // User-facing semantic version (MAJOR.MINOR.PATCH). This is what shows in Settings,
 // the update prompts, and the footers - a real version, not a build date. Bump it on
 // every deploy: PATCH for a fix, MINOR for a feature, MAJOR for a big milestone.
-const APP_VERSION = "0.14.2";
+const APP_VERSION = "0.14.3";
 // Internal build stamp. Bump on every deploy too (today's date + a counter), and keep
 // it in lockstep with VERSION in sw.js. This is what the updater actually COMPARES
 // (it's monotonic, so detection never misfires) and what cache-busts the reload;
 // APP_VERSION above is the friendly label shown to users.
-const BUILD = "2026-09-28.3";
+const BUILD = "2026-11-07.1";
 // Compare two build stamps of the form "YYYY-MM-DD.N". A plain string compare is wrong
 // (the counter isn't zero-padded, so ".11" < ".9" lexically); split on - and . into
 // numeric fields and compare left to right. True iff `a` is strictly newer than `b`.
@@ -819,11 +819,20 @@ const FILES = ["entities","places","placements"];
 
 /* ============================================================ BACKEND + AUTH CONFIG ============================================================ */
 const SUPABASE_URL = "https://ztdicgvotbvmayzmwnio.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inp0ZGljZ3ZvdGJ2bWF5em13bmlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU1NTI2MTIsImV4cCI6MjEwMTEyODYxMn0.DKgSm_EWf_ht2t0R3c41gfjeLbtpPvORpp_QJVIyEWk";
+// PUBLISHABLE key, not the old anon JWT. Supabase disabled this project's legacy
+// anon and service_role keys on 2026-10-22, and from that moment every sign-in
+// returned 401 "Legacy API keys are disabled" - including token refreshes, so
+// already-signed-in phones died within the hour too. It is safe to ship in a
+// public file, exactly like the anon key was: RLS is on with no policies, so this
+// key cannot reach a single row (see the backend's schema.sql).
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_ay2hiab7DxdEGGBtf8zjgg_9UqmzHvH";
 const API_BASE = "https://web-production-481fa.up.railway.app";
-const CONFIGURED = !SUPABASE_URL.includes("YOUR-") && !SUPABASE_ANON_KEY.includes("YOUR_") && !API_BASE.includes("YOUR-");
+// PLACEHOLDER GUARD, not a key check: "YOUR_" means the constants above were never
+// filled in, so the app runs in local-preview mode (no login, browser-only data).
+// Keep it matching whatever placeholder the preview build writes in.
+const CONFIGURED = !SUPABASE_URL.includes("YOUR-") && !SUPABASE_PUBLISHABLE_KEY.includes("YOUR_") && !API_BASE.includes("YOUR-");
 
-const supa = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+const supa = supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
   auth: { persistSession: true, autoRefreshToken: true, storage: window.localStorage, storageKey: "whereabouts-auth" }
 });
 async function authToken(){
